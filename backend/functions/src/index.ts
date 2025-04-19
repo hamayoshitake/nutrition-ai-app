@@ -41,3 +41,13 @@ export const addSampleData = onRequest(async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+
+export const getSampleData = onRequest(async (req, res) => {
+  try {
+    const snapshot = await db.collection("samples").get();
+    const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    res.status(200).json(data);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});

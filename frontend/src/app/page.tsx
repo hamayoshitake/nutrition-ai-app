@@ -1,49 +1,49 @@
+"use client";
 import Image from "next/image";
 import styles from "./page.module.css";
+import { useState } from "react";
 
 export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>src/app/page.tsx</code>.
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+  const [messages, setMessages] = useState<string[]>([]);
+  const [input, setInput] = useState("");
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  const handleSend = () => {
+    if (input.trim() === "") return;
+    setMessages([...messages, input]);
+    setInput("");
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", background: "#f7f7f7" }}>
+      <main style={{ width: "100%", maxWidth: 480, flex: 1, display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: 16 }}>
+        <div style={{ flex: 1, overflowY: "auto", marginBottom: 16 }}>
+          {messages.map((msg, idx) => (
+            <div key={idx} style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
+              <div
+                style={{ background: "#4f8cff", color: "#fff", borderRadius: 16, padding: "8px 16px", maxWidth: "80%", wordBreak: "break-word" }}
+                data-testid="chat-bubble"
+              >
+                {msg}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <input
+            type="text"
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            placeholder="食材や分量を入力..."
+            style={{ flex: 1, padding: 12, borderRadius: 8, border: "1px solid #ccc", fontSize: 16 }}
+            data-testid="chat-input"
+          />
+          <button
+            onClick={handleSend}
+            style={{ padding: "0 20px", borderRadius: 8, background: "#4f8cff", color: "#fff", border: "none", fontSize: 16 }}
+            data-testid="send-button"
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+            送信
+          </button>
         </div>
       </main>
       <footer className={styles.footer}>

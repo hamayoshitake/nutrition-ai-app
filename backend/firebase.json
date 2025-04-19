@@ -20,6 +20,9 @@
     "functions": {
       "port": 5001
     },
+    "firestore": {
+      "port": 7001
+    },
     "ui": {
       "enabled": true
     },

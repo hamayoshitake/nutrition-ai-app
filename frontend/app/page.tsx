@@ -14,40 +14,10 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: "1",
-      content: "Hello Vincent, thank you for calling Provide! 😊",
-      isUser: true,
-      timestamp: "10:20 Am",
-    },
-    {
-      id: "2",
-      content: "Perfect, I am really glad to hear that! 😊",
-      isUser: false,
-      timestamp: "10:30 Am",
-    },
-    {
-      id: "3",
-      content: "I am really sorry to hear that. Is there anything I can do to help you? 😊",
-      isUser: true,
-      timestamp: "10:36 Am",
-    },
-    {
-      id: "4",
-      content: "That is a good! 😃",
-      isUser: false,
-      timestamp: "10:39 Am",
-    },
-    {
-      id: "5",
-      content: "I'm not sure, but let me find...",
-      isUser: true,
-      timestamp: "10:40 Am",
-    },
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
 
   const [inputValue, setInputValue] = useState("")
+  const [isComposing, setIsComposing] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when new messages arrive
@@ -55,29 +25,39 @@ export default function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (inputValue.trim() === "") return
 
-    const newMessage: Message = {
+    const userMessage: Message = {
       id: Date.now().toString(),
       content: inputValue,
       isUser: true,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     }
-
-    setMessages([...messages, newMessage])
+    setMessages((prev) => [...prev, userMessage])
     setInputValue("")
 
-    // Simulate a response after a short delay
-    setTimeout(() => {
-      const responseMessage: Message = {
+    // agentsChat エンドポイントへリクエスト
+    try {
+      const res = await fetch(
+        "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agentsChat",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: inputValue }),
+        }
+      )
+      const data = await res.json()
+      const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: "Thanks for your message!",
+        content: data.message || "エラーが発生しました",
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }
-      setMessages((prev) => [...prev, responseMessage])
-    }, 1000)
+      setMessages((prev) => [...prev, botMessage])
+    } catch (error) {
+      console.error("agentsChat error:", error)
+    }
   }
 
   return (
@@ -118,9 +98,15 @@ export default function ChatPage() {
           <Input
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            placeholder="Type something..."
+            onCompositionStart={() => setIsComposing(true)}
+            onCompositionEnd={() => setIsComposing(false)}
+            placeholder="メッセージを入力してください"
             className="flex-1 border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-            onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !isComposing) {
+                handleSendMessage()
+              }
+            }}
           />
 
           <Button

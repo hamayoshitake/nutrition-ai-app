@@ -35,4 +35,7 @@ Thumbs.db
 # Others
 coverage/
 dist/
-build/ 
+build/
+
+documents/
+backend/functions/venv/

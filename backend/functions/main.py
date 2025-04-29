@@ -20,11 +20,22 @@ from firebase_functions import https_fn, firestore_fn
 # Firebase Admin SDK をインポート
 from firebase_admin import initialize_app, firestore
 import google.cloud.firestore
+import os
+import openai
+from openai import OpenAI
+from dotenv import load_dotenv
+import json
+
+# .env ファイルを読み込む
+load_dotenv()
 
 # Firebase Admin 初期化
 app = initialize_app()
 db = firestore.client()
 
+# OpenAI API キー設定
+openai.api_key = os.getenv("OPENAI_API_KEY")
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 # HTTP 関数 (REST API エンドポイント)
 @https_fn.on_request()
@@ -72,6 +83,49 @@ def agent(request):
         result = Runner.run_sync(agent_obj, text)
 
     return {"type": "ai_response", "message": result.final_output}
+
+
+# HTTP 関数：Agents Chat test endpoint
+@https_fn.on_request()
+def agentsChat(request):
+    # CORS と JSON Content-Type ヘッダー設定
+    headers = {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Content-Type": "application/json"
+    }
+    # プリフライト対応
+    if request.method == "OPTIONS":
+        return https_fn.Response("", status=204, headers=headers)
+
+    # リクエスト JSON からプロンプトを取得
+    data = request.get_json(silent=True) or {}
+    prompt = data.get("prompt") or data.get("text")
+    if not prompt:
+        return https_fn.Response(json.dumps({"error": "prompt フィールドが必要です"}), status=400, headers=headers)
+
+    # OpenAI Agent SDK があればそちらを利用
+    try:
+        from agents import Agent, Runner, trace
+        agent_obj = Agent(
+            name="chat-agent",
+            instructions="ユーザーと会話を行ってください。"
+        )
+        with trace("chat-workflow"):
+            result = Runner.run_sync(agent_obj, prompt)
+        # Agent SDK レスポンスを JSON で返却
+        return https_fn.Response(json.dumps({"message": result.final_output}), status=200, headers=headers)
+    except Exception:
+        # フォールバック: OpenAI API の ChatCompletion
+        # OpenAI Python v1 SDK による ChatCompletion
+        resp = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        message_text = resp.choices[0].message.content
+        # Fallback レスポンスを JSON で返却
+        return https_fn.Response(json.dumps({"message": message_text}), status=200, headers=headers)
 
 
 # Firestore ドキュメント生成トリガー例

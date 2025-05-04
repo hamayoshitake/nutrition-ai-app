@@ -48,9 +48,13 @@ export default function ChatPage() {
         }
       )
       const data = await res.json()
+      // レスポンスステータスに応じて表示するメッセージを選択
+      const messageText = res.ok
+        ? data.message
+        : data.error || "エラーが発生しました"
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.message || "エラーが発生しました",
+        content: messageText,
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }

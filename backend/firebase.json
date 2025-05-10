@@ -4,6 +4,7 @@
       "source": "functions",
       "codebase": "default",
       "runtime": "python312",
+      "timeoutSeconds": 300,
       "ignore": [
         "venv",
         ".git",

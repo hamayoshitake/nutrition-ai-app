@@ -15,9 +15,9 @@ interface Message {
 
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
-
   const [inputValue, setInputValue] = useState("")
   const [isComposing, setIsComposing] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom when new messages arrive
@@ -37,10 +37,13 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMessage])
     setInputValue("")
 
+    // ローディング開始
+    setIsLoading(true)
+
     // agentsChat エンドポイントへリクエスト
     try {
       const res = await fetch(
-        "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agentsChat",
+        "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agent",
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -48,15 +51,30 @@ export default function ChatPage() {
         }
       )
       const data = await res.json()
+      // レスポンスステータスに応じて表示するメッセージを選択
+      const messageText = res.ok
+        ? data.message
+        : data.error || "エラーが発生しました"
       const botMessage: Message = {
         id: (Date.now() + 1).toString(),
-        content: data.message || "エラーが発生しました",
+        content: messageText,
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       }
       setMessages((prev) => [...prev, botMessage])
     } catch (error) {
       console.error("agentsChat error:", error)
+      // エラー時もメッセージとして表示
+      const errorMessage: Message = {
+        id: (Date.now() + 1).toString(),
+        content: "エラーが発生しました。しばらく待ってからもう一度お試しください。",
+        isUser: false,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      }
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      // ローディング終了
+      setIsLoading(false)
     }
   }
 
@@ -85,6 +103,26 @@ export default function ChatPage() {
             </div>
           </div>
         ))}
+        
+        {/* ローディングインジケータ */}
+        {isLoading && (
+          <div className="flex justify-start">
+            <Avatar className="h-8 w-8 mr-2 mt-1">
+              <AvatarImage src="/placeholder.svg?height=32&width=32" />
+              <AvatarFallback>VN</AvatarFallback>
+            </Avatar>
+            <div className="max-w-[75%]">
+              <div className="p-3 rounded-2xl bg-white border border-gray-200">
+                <div className="flex items-center space-x-2">
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0s" }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.2s" }}></div>
+                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0.4s" }}></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         <div ref={messagesEndRef} />
       </div>
 
@@ -113,7 +151,7 @@ export default function ChatPage() {
             size="icon"
             className="rounded-full h-8 w-8 bg-[#ffd465] hover:bg-[#ffc935]"
             onClick={handleSendMessage}
-            disabled={inputValue.trim() === ""}
+            disabled={inputValue.trim() === "" || isLoading}
           >
             <Send className="h-4 w-4 text-gray-800" />
           </Button>

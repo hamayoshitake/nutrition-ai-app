@@ -68,3 +68,5 @@ node_modules/
 # dataconnect generated files
 .dataconnect
 backend/functions/venv/*
+
+functions/__pycache__/*

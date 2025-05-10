@@ -1,6 +1,16 @@
 {
   "functions": {
-    "source": "backend/functions"
+    "source": "backend/functions",
+    "codebase": "default",
+    "runtime": "python312",
+    "timeoutSeconds": 300,
+    "ignore": [
+      "venv",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "*.local"
+    ]
   },
   "emulators": {
     "functions": {

@@ -2,10 +2,20 @@ import json
 import asyncio
 from firebase_functions import https_fn
 from agents import Agent, Runner, trace, RunHooks, RunContextWrapper, Usage, Tool
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
+import uuid
 from typing import Any
 from .utils.header import get_cors_headers
+from services.user_service import UserService
+from services.chat_session_service import ChatSessionService
+from function_tools.chat_tools import save_chat_message_tool, get_chat_messages_tool
+from function_tools.nutrition_tools import save_nutrition_entry_tool, get_nutrition_entry_tool
+from services.chat_message_service import ChatMessageService
+from function_tools.get_nutrition_search_tool import get_nutrition_search_tool
+from function_tools.get_nutrition_details_tool import get_nutrition_details_tool
+from function_tools.calculate_nutrition_summary_tool import calculate_nutrition_summary_tool
+
 
 # ライフサイクルフック定義
 class NutritionHooks(RunHooks):
@@ -37,8 +47,10 @@ class NutritionHooks(RunHooks):
         self, context: RunContextWrapper, agent: Agent, tool: Tool, result: str
     ) -> None:
         self.event_counter += 1
+        # result が文字列以外の場合は文字列化してからスライス
+        result_str = result if isinstance(result, str) else str(result)
         print(
-            f"### {self.event_counter}: ツール {tool.name} 終了. 結果: {result[:50]}.... 使用量: {self._usage_to_str(context.usage)}"
+            f"### {self.event_counter}: ツール {tool.name} 終了. 結果: {result_str[:50]}.... 使用量: {self._usage_to_str(context.usage)}"
         )
 
     async def on_handoff(
@@ -52,20 +64,22 @@ class NutritionHooks(RunHooks):
 # フックインスタンス作成
 nutrition_hooks = NutritionHooks()
 
-nutrition_agent = Agent(
-    name="NutritionConversationalAgent",
-    model="gpt-3.5-turbo",
-    instructions="""
-    """,
-)
-
 main_agent = Agent(
     name="MainAgent",
-    model="gpt-3.5-turbo",
+    model="gpt-4o-mini",
     instructions="""
-    あなたはエージェントです。適当に会話してください。
-    
+    ユーザーとの自然な対話を行うトップレベルエージェントです。
+    必要に応じてチャット履歴や栄養記録の取得・保存ツールを呼び出し、
+    ユーザーの健康管理をサポートしてください。
     """,
+    tools=[
+        save_nutrition_entry_tool,
+        get_nutrition_entry_tool,
+        get_chat_messages_tool,
+        get_nutrition_search_tool,
+        get_nutrition_details_tool,
+        calculate_nutrition_summary_tool
+    ]
 )
 
 # HTTP関数
@@ -86,11 +100,24 @@ def agent(request):
             headers=headers
         )
 
-    # メッセージ形式
-    formatted_messages = [{"role": "user", "content": prompt}]
-    
+    # Cookieヘッダーを取得
+    user_id = "5e550382-1cfb-4d30-8403-33e63548b5db"
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = str(uuid.uuid4())
+        ChatSessionService().create_session(user_id)
+
+    print(f"user_id: {user_id}, session_id: {session_id}")
+
+    # メッセージ形式 - システムメッセージにCookie情報を含める
+    formatted_messages = [
+        {"role": "system", "content": f"#SYSTEM_DATA\nuser_id: {user_id}, session_id: {session_id}\n#END_SYSTEM_DATA"},
+        {"role": "user", "content": prompt}
+    ]
+
+    ChatMessageService().save_message(user_id, session_id, "user", prompt)
+
     try:
-        # フックを指定してエージェントを実行
         result = asyncio.run(
             Runner.run(
                 main_agent,
@@ -98,24 +125,27 @@ def agent(request):
                 hooks=nutrition_hooks
             )
         )
-        
+
         # エージェントの応答を取得
         agent_response = result.final_output
-        
+
+        ChatMessageService().save_message(user_id, session_id, "agent", agent_response)
+
+        # セッションIDをCookieにセット
+        headers_with_cookie = headers.copy()
+        # セッションIDクッキーを1週間有効な永続化クッキーとして設定
+        expires = (datetime.utcnow() + timedelta(days=7)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        headers_with_cookie["Set-Cookie"] = (
+            f"session_id={session_id}; Path=/; Expires={expires}; HttpOnly; SameSite=None; Secure"
+        )
         return https_fn.Response(
             json.dumps({"message": agent_response}),
             status=200,
-            headers=headers
+            headers=headers_with_cookie
         )
-            
     except Exception as e:
-        error_message = f"エージェント実行エラー: {str(e)}"
-        
-        # エラー時のフォールバック応答
-        fallback_response = "申し訳ありません。処理中にエラーが発生しました。もう一度お試しください。"
-        
         return https_fn.Response(
-            json.dumps({"message": fallback_response, "error": str(e)}),
+            json.dumps({"message": "処理中にエラーが発生しました。", "error": str(e)}),
             status=500,
             headers=headers
         )

@@ -21,20 +21,16 @@ class UsersRepository:
         self.col.document(user_id).set(data)
         return user_id
 
-    def get_user_by_id(self, user_id: str) -> dict | None:
-        doc = self.col.document(user_id).get()
-        return doc.to_dict() if doc.exists else None
-
-    def get_user_by_email(self, email: str) -> dict | None:
-        qs = self.col.where("email", "==", email).limit(1).get()
-        return qs[0].to_dict() if qs else None
-
-    def update_user(self, user_id: str, **fields) -> bool:
-        if not fields:
-            return False
-        fields["updated_at"] = datetime.utcnow().isoformat()
-        doc_ref = self.col.document(user_id)
-        if doc_ref.get().exists:
-            doc_ref.update(fields)
-            return True
-        return False
+    def get_user_id_by_session(self, session_id: str) -> str | None:
+        docs = (
+            self.db
+            .collection_group("chat_sessions")
+            .where("id", "==", session_id)
+            .limit(1)
+            .get()
+        )
+        if not docs:
+            return None
+        # dict型に変換
+        data = docs[0].to_dict()
+        return data.get("user_id")

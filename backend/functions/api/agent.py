@@ -2,225 +2,27 @@ import json
 import asyncio
 import os
 from firebase_functions import https_fn, params
-from agents import Agent, Runner, trace, RunHooks, RunContextWrapper, Usage, Tool
-from datetime import datetime, timedelta
+from agents import Agent, Runner, trace
+from datetime import timedelta, timezone
 import re
 import uuid
 from typing import Any, Dict, List
 from .utils.header import get_cors_headers
+from .utils.tracing_hooks import DetailedNutritionHooks
+from .utils.datetime_utils import get_system_datetime_info, now_jst, to_jst
 from services.user_service import UserService
 from services.chat_session_service import ChatSessionService
 from function_tools.chat_tools import save_chat_message_tool, get_chat_messages_tool
-from function_tools.nutrition_tools import save_nutrition_entry_tool, get_nutrition_entry_tool
+from function_tools.nutrition_tools import (
+    save_nutrition_entry_tool, 
+    get_nutrition_entry_tool,
+    get_nutrition_entries_by_date_tool,
+    get_all_nutrition_entries_tool
+)
 from services.chat_message_service import ChatMessageService
 from function_tools.get_nutrition_search_tool import get_nutrition_search_tool
 from function_tools.get_nutrition_details_tool import get_nutrition_details_tool
 from function_tools.calculate_nutrition_summary_tool import calculate_nutrition_summary_tool
-
-
-# 詳細トレーシング用フック定義
-class DetailedNutritionHooks(RunHooks):
-    def __init__(self):
-        self.event_counter = 0
-        self.tool_calls = []
-        self.llm_generations = []
-        self.errors = []
-
-    def _usage_to_str(self, usage: Usage) -> str:
-        return f"{usage.requests} requests, {usage.input_tokens} input tokens, {usage.output_tokens} output tokens, {usage.total_tokens} total tokens"
-
-    def _log_with_timestamp(self, message: str) -> None:
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-        print(f"[{timestamp}] {message}")
-
-    async def on_agent_start(self, context: RunContextWrapper, agent: Agent) -> None:
-        self.event_counter += 1
-        self._log_with_timestamp(
-            f"🚀 ### {self.event_counter}: エージェント {agent.name} 開始"
-        )
-        self._log_with_timestamp(f"📊 使用量: {self._usage_to_str(context.usage)}")
-        self._log_with_timestamp(f"🔧 利用可能ツール: {[tool.name for tool in agent.tools]}")
-
-    async def on_agent_end(self, context: RunContextWrapper, agent: Agent, output: Any) -> None:
-        self.event_counter += 1
-        self._log_with_timestamp(
-            f"🏁 ### {self.event_counter}: エージェント {agent.name} 終了"
-        )
-        self._log_with_timestamp(f"📊 最終使用量: {self._usage_to_str(context.usage)}")
-        self._log_with_timestamp(f"📝 最終出力: {str(output)[:200]}...")
-
-    async def on_tool_start(self, context: RunContextWrapper, agent: Agent, tool: Tool) -> None:
-        self.event_counter += 1
-        self._log_with_timestamp(
-            f"🔨 ### {self.event_counter}: ツール {tool.name} 開始"
-        )
-        self._log_with_timestamp(f"📊 使用量: {self._usage_to_str(context.usage)}")
-        
-        # ツール呼び出し情報を記録（引数も含める）
-        tool_call_info = {
-            "timestamp": datetime.now().isoformat(),
-            "tool_name": tool.name,
-            "agent_name": agent.name,
-            "event_counter": self.event_counter,
-            "status": "started"
-        }
-        
-        # ツールの引数情報を取得（可能な場合）
-        try:
-            if hasattr(tool, 'function') and hasattr(tool.function, '__name__'):
-                tool_call_info["function_name"] = tool.function.__name__
-            if hasattr(tool, 'description'):
-                tool_call_info["description"] = tool.description
-        except Exception as e:
-            self._log_with_timestamp(f"⚠️ ツール情報取得エラー: {str(e)}")
-        
-        self.tool_calls.append(tool_call_info)
-        self._log_with_timestamp(f"📋 ツール詳細: {tool_call_info}")
-        
-        # 利用可能なツール一覧も表示
-        available_tools = [t.name for t in agent.tools]
-        self._log_with_timestamp(f"🔧 エージェントの利用可能ツール: {available_tools}")
-        
-        # 現在のツールが利用可能ツールに含まれているかチェック
-        if tool.name not in available_tools:
-            self._log_with_timestamp(f"⚠️ 警告: ツール '{tool.name}' はエージェントの利用可能ツールリストにありません！")
-
-    async def on_tool_end(
-        self, context: RunContextWrapper, agent: Agent, tool: Tool, result: str
-    ) -> None:
-        self.event_counter += 1
-        result_str = result if isinstance(result, str) else str(result)
-        self._log_with_timestamp(
-            f"✅ ### {self.event_counter}: ツール {tool.name} 終了"
-        )
-        self._log_with_timestamp(f"📊 使用量: {self._usage_to_str(context.usage)}")
-        self._log_with_timestamp(f"📤 結果: {result_str[:200]}...")
-        
-        # ツール呼び出し完了情報を記録
-        tool_call_info = {
-            "timestamp": datetime.now().isoformat(),
-            "tool_name": tool.name,
-            "agent_name": agent.name,
-            "event_counter": self.event_counter,
-            "status": "completed",
-            "result_preview": result_str[:100]
-        }
-        self.tool_calls.append(tool_call_info)
-
-    async def on_generation_start(self, context: RunContextWrapper, agent: Agent) -> None:
-        self.event_counter += 1
-        self._log_with_timestamp(
-            f"🧠 ### {self.event_counter}: LLM生成開始 (エージェント: {agent.name})"
-        )
-        self._log_with_timestamp(f"📊 使用量: {self._usage_to_str(context.usage)}")
-
-    async def on_generation_end(self, context: RunContextWrapper, agent: Agent, output: str) -> None:
-        self.event_counter += 1
-        self._log_with_timestamp(
-            f"💭 ### {self.event_counter}: LLM生成終了 (エージェント: {agent.name})"
-        )
-        self._log_with_timestamp(f"📊 使用量: {self._usage_to_str(context.usage)}")
-        self._log_with_timestamp(f"📝 生成内容: {output[:200]}...")
-        
-        # LLM生成情報を記録
-        generation_info = {
-            "timestamp": datetime.now().isoformat(),
-            "agent_name": agent.name,
-            "event_counter": self.event_counter,
-            "output_preview": output[:100]
-        }
-        self.llm_generations.append(generation_info)
-
-    async def on_handoff(
-        self, context: RunContextWrapper, from_agent: Agent, to_agent: Agent
-    ) -> None:
-        self.event_counter += 1
-        self._log_with_timestamp(
-            f"🔄 ### {self.event_counter}: {from_agent.name} から {to_agent.name} へハンドオフ"
-        )
-        self._log_with_timestamp(f"📊 使用量: {self._usage_to_str(context.usage)}")
-
-    async def on_error(self, context: RunContextWrapper, error: Exception) -> None:
-        self.event_counter += 1
-        self._log_with_timestamp(
-            f"❌ ### {self.event_counter}: エラー発生: {str(error)}"
-        )
-        self._log_with_timestamp(f"📊 使用量: {self._usage_to_str(context.usage)}")
-        
-        # エラー情報を記録
-        error_info = {
-            "timestamp": datetime.now().isoformat(),
-            "event_counter": self.event_counter,
-            "error_type": type(error).__name__,
-            "error_message": str(error)
-        }
-        self.errors.append(error_info)
-
-    def get_summary(self) -> Dict[str, Any]:
-        """実行サマリーを取得"""
-        return {
-            "total_events": self.event_counter,
-            "tool_calls": self.tool_calls,
-            "llm_generations": self.llm_generations,
-            "errors": self.errors,
-            "tool_call_count": len([tc for tc in self.tool_calls if tc["status"] == "completed"]),
-            "generation_count": len(self.llm_generations),
-            "error_count": len(self.errors)
-        }
-
-    def analyze_prompt_for_tools(self, prompt: str) -> Dict[str, Any]:
-        """プロンプトを分析してどのツールが必要かを判断"""
-        analysis = {
-            "prompt": prompt,
-            "expected_tools": [],
-            "prompt_type": "unknown",
-            "keywords": []
-        }
-        
-        prompt_lower = prompt.lower()
-        
-        # 食事記録関連のキーワード
-        food_keywords = ["食べた", "食事", "朝食", "昼食", "夕食", "おやつ", "飲んだ", "摂取", "食べました", "飲みました"]
-        # 栄養情報取得関連のキーワード
-        nutrition_keywords = ["栄養", "カロリー", "タンパク質", "炭水化物", "脂質", "ビタミン", "ミネラル"]
-        # チャット履歴関連のキーワード
-        chat_keywords = ["履歴", "過去", "前回", "以前", "記録", "ログ"]
-        # 検索関連のキーワード
-        search_keywords = ["検索", "探す", "調べる", "見つける", "情報"]
-        
-        # キーワード分析
-        found_keywords = []
-        if any(keyword in prompt_lower for keyword in food_keywords):
-            analysis["expected_tools"].append("save_nutrition_entry_tool")
-            analysis["prompt_type"] = "food_logging"
-            found_keywords.extend([k for k in food_keywords if k in prompt_lower])
-            
-        if any(keyword in prompt_lower for keyword in nutrition_keywords):
-            analysis["expected_tools"].extend(["get_nutrition_search_tool", "get_nutrition_details_tool", "calculate_nutrition_summary_tool"])
-            if analysis["prompt_type"] == "unknown":
-                analysis["prompt_type"] = "nutrition_inquiry"
-            found_keywords.extend([k for k in nutrition_keywords if k in prompt_lower])
-            
-        if any(keyword in prompt_lower for keyword in chat_keywords):
-            analysis["expected_tools"].append("get_chat_messages_tool")
-            if analysis["prompt_type"] == "unknown":
-                analysis["prompt_type"] = "chat_history"
-            found_keywords.extend([k for k in chat_keywords if k in prompt_lower])
-            
-        if any(keyword in prompt_lower for keyword in search_keywords):
-            analysis["expected_tools"].append("get_nutrition_search_tool")
-            found_keywords.extend([k for k in search_keywords if k in prompt_lower])
-        
-        # 栄養記録取得のパターン
-        if any(phrase in prompt_lower for phrase in ["今日の栄養", "栄養記録", "摂取量", "栄養状況"]):
-            analysis["expected_tools"].append("get_nutrition_entry_tool")
-            if analysis["prompt_type"] == "unknown":
-                analysis["prompt_type"] = "nutrition_status"
-        
-        analysis["keywords"] = list(set(found_keywords))
-        analysis["expected_tools"] = list(set(analysis["expected_tools"]))  # 重複除去
-        
-        return analysis
 
 # フックインスタンス作成
 nutrition_hooks = DetailedNutritionHooks()
@@ -247,7 +49,8 @@ main_agent = Agent(
        - 詳細情報が必要な場合はget_nutrition_details_toolを使用してください
     
     3. 栄養記録の確認時の処理：
-       - 「今日の栄養」「栄養摂取量」などの問い合わせには、get_nutrition_entry_toolを使用してください
+       - 「今日の栄養」「栄養摂取量」「栄養摂取状況」などの問い合わせには、get_nutrition_entries_by_date_toolを使用してください
+       - 特定のentry_idが分かっている場合のみget_nutrition_entry_toolを使用してください
        - 複数の記録がある場合は、calculate_nutrition_summary_toolで合計を計算してください
     
     4. チャット履歴の確認時の処理：
@@ -257,15 +60,18 @@ main_agent = Agent(
        - 同じツールを連続して複数回呼び出さないでください
        - エラーが発生した場合は、1回だけリトライしてください
        - ツールが失敗した場合は、推定値や一般的な情報で回答してください
+       - 本日の日付は、current_datetimeで取得してください
     
     処理フロー例：
     - 食事報告 → 推定値で栄養計算 → save_nutrition_entry_toolで保存（各食材1回ずつ） → 保存完了を報告
     - 栄養問い合わせ → get_nutrition_search_toolで検索 → 結果を回答（失敗時は推定値）
-    - 栄養記録確認 → get_nutrition_entry_toolで取得 → 結果を表示
+    - 栄養記録確認 → get_nutrition_entries_by_date_toolで今日の記録を取得 → 結果を表示
     """,
     tools=[
         save_nutrition_entry_tool,
         get_nutrition_entry_tool,
+        get_nutrition_entries_by_date_tool,
+        get_all_nutrition_entries_tool,
         get_chat_messages_tool,
         get_nutrition_search_tool,
         get_nutrition_details_tool,
@@ -274,7 +80,7 @@ main_agent = Agent(
 )
 
 # HTTP関数
-@https_fn.on_request(timeout_sec=540, secrets=[params.SecretParam("OPENAI_API_KEY")])
+@https_fn.on_request(timeout_sec=120, secrets=[params.SecretParam("OPENAI_API_KEY")])
 def agent(request):
     headers = get_cors_headers()
     # OPTIONS プレフライト対応
@@ -298,8 +104,13 @@ def agent(request):
         session_id = str(uuid.uuid4())
         ChatSessionService().create_session(user_id)
 
+    # 日本時間の詳細情報を取得
+    datetime_info = get_system_datetime_info()
+    current_jst = now_jst()
+
     print(f"🔍 リクエスト詳細: user_id={user_id}, session_id={session_id}")
     print(f"📝 ユーザープロンプト: {prompt}")
+    print(f"🕐 現在の日本時間: {datetime_info['current_datetime']}")
 
     # プロンプト分析を実行
     prompt_analysis = nutrition_hooks.analyze_prompt_for_tools(prompt)
@@ -309,21 +120,27 @@ def agent(request):
     print(f"🔧 期待されるツール: {prompt_analysis['expected_tools']}")
     print(f"🔍 === 分析結果終了 ===\n")
 
-    # メッセージ形式 - システムメッセージにCookie情報を含める
+    # メッセージ形式 - システムメッセージに詳細な日時情報を含める
+    print(f"🔒 システムデータ生成: user_id={user_id}, session_id={session_id}")
     formatted_messages = [
-        {"role": "system", "content": f"#SYSTEM_DATA\nuser_id: {user_id}, session_id: {session_id}\n#END_SYSTEM_DATA"},
+        {"role": "system", "content": f"""#SYSTEM_DATA
+            user_id: {user_id}
+            session_id: {session_id}
+            current_datetime: {datetime_info['current_datetime']}
+            #END_SYSTEM_DATA
+        """},
+
         {"role": "user", "content": prompt}
     ]
+    print(f"📤 フォーマット済みメッセージ: {formatted_messages}")
+
 
     print(f"💾 ユーザーメッセージを保存中...")
     ChatMessageService().save_message(user_id, session_id, "user", prompt)
     print(f"✅ ユーザーメッセージ保存完了")
 
     # フックをリセット（新しいリクエストのため）
-    nutrition_hooks.event_counter = 0
-    nutrition_hooks.tool_calls = []
-    nutrition_hooks.llm_generations = []
-    nutrition_hooks.errors = []
+    nutrition_hooks.reset()
 
     try:
         print(f"🚀 エージェント実行開始...")
@@ -397,10 +214,12 @@ def agent(request):
         ChatMessageService().save_message(user_id, session_id, "agent", agent_response)
         print(f"✅ Agentメッセージ保存完了")
 
-        # セッションIDをCookieにセット
+        # セッションIDをCookieにセット（日本時間ベースで有効期限を設定）
         headers_with_cookie = headers.copy()
-        # セッションIDクッキーを1週間有効な永続化クッキーとして設定
-        expires = (datetime.utcnow() + timedelta(days=7)).strftime("%a, %d %b %Y %H:%M:%S GMT")
+        # 1週間後の日本時間を計算してUTCに変換
+        expires_jst = current_jst + timedelta(days=7)
+        expires_utc = expires_jst.astimezone(timezone.utc)
+        expires = expires_utc.strftime("%a, %d %b %Y %H:%M:%S GMT")
         headers_with_cookie["Set-Cookie"] = (
             f"session_id={session_id}; Path=/; Expires={expires}; HttpOnly; SameSite=None; Secure"
         )
@@ -413,6 +232,7 @@ def agent(request):
                 "llm_generations": summary['generation_count'],
                 "errors": summary['error_count'],
                 "total_events": summary['total_events'],
+                "datetime_info": datetime_info,
                 "prompt_analysis": {
                     "type": prompt_analysis['prompt_type'],
                     "keywords": prompt_analysis['keywords'],
@@ -451,7 +271,7 @@ def agent(request):
         
         return https_fn.Response(
             json.dumps({
-                "message": "処理中にエラーが発生しました。", 
+                "message": "処理中にエラーが発生しました。",
                 "error": str(e),
                 "debug_info": {
                     "error_type": type(e).__name__,

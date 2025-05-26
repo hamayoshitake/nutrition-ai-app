@@ -81,4 +81,4 @@ class NutritionSummaryService:
                 if isinstance(v, (int, float)) and k != "description":
                     summary[f"{k}_per_serving"] = round(v * factor, 2)
 
-        return summary 
+        return summary

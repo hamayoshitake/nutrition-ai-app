@@ -65,3 +65,50 @@ class NutritionEntriesRepository:
             doc_ref.update(fields)
             return True
         return False
+
+    def get_entries_by_date(self, user_id: str, entry_date: str) -> list[dict]:
+        """
+        指定した日付の栄養エントリを全て取得します。
+        
+        Args:
+            user_id: ユーザーID
+            entry_date: 取得したい日付（YYYY-MM-DD形式）
+            
+        Returns:
+            該当する栄養エントリのリスト
+        """
+        try:
+            docs = (
+                self.root
+                .document(user_id)
+                .collection("nutrition_entries")
+                .where("entry_date", "==", entry_date)
+                .stream()
+            )
+            return [doc.to_dict() for doc in docs if doc.exists]
+        except Exception:
+            return []
+
+    def get_all_entries(self, user_id: str, limit: int = 100) -> list[dict]:
+        """
+        ユーザーの全栄養エントリを取得します（最新順）。
+        
+        Args:
+            user_id: ユーザーID
+            limit: 取得件数の上限
+            
+        Returns:
+            栄養エントリのリスト
+        """
+        try:
+            docs = (
+                self.root
+                .document(user_id)
+                .collection("nutrition_entries")
+                .order_by("created_at", direction=firestore.Query.DESCENDING)
+                .limit(limit)
+                .stream()
+            )
+            return [doc.to_dict() for doc in docs if doc.exists]
+        except Exception:
+            return []

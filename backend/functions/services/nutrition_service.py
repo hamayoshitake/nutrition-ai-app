@@ -84,4 +84,54 @@ class NutritionService:
                 return {"success": False, "error": "エントリが見つかりません"}
             return {"success": True, "entry": entry}
         except Exception as e:
+            return {"success": False, "error": "サーバーエラー: " + str(e)}
+
+    def get_entries_by_date(self, user_id: str, entry_date: str | None = None) -> dict:
+        """
+        指定した日付の栄養エントリを取得します。日付が指定されない場合は今日の日付を使用します。
+        """
+        # パラメータの型チェック
+        if not isinstance(user_id, str) or not user_id.strip():
+            return {"success": False, "error": "無効な user_id です"}
+
+        # デフォルト値の設定（今日の日付）
+        if entry_date is None:
+            try:
+                from api.utils.datetime_utils import jst_date
+                entry_date = jst_date()
+            except ImportError:
+                # フォールバック: 標準のdatetimeを使用
+                from datetime import datetime
+                entry_date = datetime.now().strftime("%Y-%m-%d")
+
+        if not isinstance(entry_date, str):
+            return {"success": False, "error": "無効な entry_date です"}
+
+        try:
+            entries = self.repo.get_entries_by_date(user_id, entry_date)
+            return {
+                "success": True, 
+                "entries": entries,
+                "entry_date": entry_date,
+                "count": len(entries)
+            }
+        except Exception as e:
+            return {"success": False, "error": "サーバーエラー: " + str(e)}
+
+    def get_all_entries(self, user_id: str, limit: int = 50) -> dict:
+        """
+        ユーザーの全栄養エントリを取得します。
+        """
+        # パラメータの型チェック
+        if not isinstance(user_id, str) or not user_id.strip():
+            return {"success": False, "error": "無効な user_id です"}
+
+        try:
+            entries = self.repo.get_all_entries(user_id, limit)
+            return {
+                "success": True, 
+                "entries": entries,
+                "count": len(entries)
+            }
+        except Exception as e:
             return {"success": False, "error": "サーバーエラー: " + str(e)} 

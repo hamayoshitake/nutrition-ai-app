@@ -199,7 +199,7 @@ class DetailedNutritionHooks(RunHooks):
             found_keywords.extend([k for k in food_keywords if k in prompt_lower])
             
         if any(keyword in prompt_lower for keyword in nutrition_keywords):
-            analysis["expected_tools"].extend(["get_nutrition_search_tool", "get_nutrition_details_tool", "calculate_nutrition_summary_tool"])
+            analysis["expected_tools"].append("get_nutrition_info_tool")
             if analysis["prompt_type"] == "unknown":
                 analysis["prompt_type"] = "nutrition_inquiry"
             found_keywords.extend([k for k in nutrition_keywords if k in prompt_lower])
@@ -219,6 +219,12 @@ class DetailedNutritionHooks(RunHooks):
             analysis["expected_tools"].append("get_nutrition_entries_by_date_tool")
             if analysis["prompt_type"] == "unknown":
                 analysis["prompt_type"] = "nutrition_status"
+        
+        # 栄養価問い合わせの詳細パターン
+        if any(phrase in prompt_lower for phrase in ["栄養価", "栄養成分", "栄養素", "成分表"]):
+            analysis["expected_tools"].append("get_nutrition_info_tool")
+            if analysis["prompt_type"] == "unknown":
+                analysis["prompt_type"] = "nutrition_details"
         
         analysis["keywords"] = list(set(found_keywords))
         analysis["expected_tools"] = list(set(analysis["expected_tools"]))  # 重複除去

@@ -119,5 +119,79 @@ class TestNutritionService:
         assert "サーバーエラー" in result.get("error", "")
         assert "DB読取失敗" in result.get("error", "")
 
+    # 新しいメソッドのテスト
+    def test_get_entries_by_date_success(self):
+        """正常系: 日付ベースでエントリを取得する場合のテスト"""
+        entries_data = [
+            {"id": "entry1", "user_id": self.user_id, "entry_date": "2025-05-26", "food_item": "rice"},
+            {"id": "entry2", "user_id": self.user_id, "entry_date": "2025-05-26", "food_item": "chicken"}
+        ]
+        self.mock_repo.get_entries_by_date.return_value = entries_data
+        result = self.service.get_entries_by_date(self.user_id, "2025-05-26")
+        
+        self.mock_repo.get_entries_by_date.assert_called_once_with(self.user_id, "2025-05-26")
+        assert result["success"] is True
+        assert result["entries"] == entries_data
+        assert result["entry_date"] == "2025-05-26"
+        assert result["count"] == 2
+
+    def test_get_entries_by_date_no_date(self):
+        """正常系: 日付を指定しない場合のテスト（今日の日付を使用）"""
+        entries_data = []
+        self.mock_repo.get_entries_by_date.return_value = entries_data
+        
+        # datetime_utilsのインポートをモック化
+        with patch('services.nutrition_service.datetime') as mock_datetime:
+            mock_datetime.now.return_value.strftime.return_value = "2025-05-26"
+            result = self.service.get_entries_by_date(self.user_id, None)
+        
+        # 今日の日付で呼び出されることを確認
+        self.mock_repo.get_entries_by_date.assert_called_once_with(self.user_id, "2025-05-26")
+        assert result["success"] is True
+        assert result["entries"] == entries_data
+        assert result["count"] == 0
+
+    def test_get_entries_by_date_invalid_user_id(self):
+        """異常系: 無効なuser_idの場合のテスト"""
+        result = self.service.get_entries_by_date("", "2025-05-26")
+        assert result["success"] is False
+        assert "無効な user_id です" in result.get("error", "")
+
+    def test_get_entries_by_date_exception(self):
+        """異常系: リポジトリ側で例外が発生した場合のテスト"""
+        self.mock_repo.get_entries_by_date.side_effect = Exception("DB読取失敗")
+        result = self.service.get_entries_by_date(self.user_id, "2025-05-26")
+        assert result["success"] is False
+        assert "サーバーエラー" in result.get("error", "")
+        assert "DB読取失敗" in result.get("error", "")
+
+    def test_get_all_entries_success(self):
+        """正常系: 全エントリを取得する場合のテスト"""
+        entries_data = [
+            {"id": "entry1", "user_id": self.user_id, "created_at": "2025-05-26T10:00:00"},
+            {"id": "entry2", "user_id": self.user_id, "created_at": "2025-05-25T10:00:00"}
+        ]
+        self.mock_repo.get_all_entries.return_value = entries_data
+        result = self.service.get_all_entries(self.user_id, 100)
+        
+        self.mock_repo.get_all_entries.assert_called_once_with(self.user_id, 100)
+        assert result["success"] is True
+        assert result["entries"] == entries_data
+        assert result["count"] == 2
+
+    def test_get_all_entries_invalid_user_id(self):
+        """異常系: 無効なuser_idの場合のテスト"""
+        result = self.service.get_all_entries("", 50)
+        assert result["success"] is False
+        assert "無効な user_id です" in result.get("error", "")
+
+    def test_get_all_entries_exception(self):
+        """異常系: リポジトリ側で例外が発生した場合のテスト"""
+        self.mock_repo.get_all_entries.side_effect = Exception("DB読取失敗")
+        result = self.service.get_all_entries(self.user_id, 50)
+        assert result["success"] is False
+        assert "サーバーエラー" in result.get("error", "")
+        assert "DB読取失敗" in result.get("error", "")
+
 if __name__ == "__main__":
     pytest.main(["-xvs", __file__])

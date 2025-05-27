@@ -17,12 +17,16 @@ class NutritionSearchService:
         if not api_key:
             return {"error": "USDA_API_KEY が設定されていません"}
 
-        payload: Dict[str, Any] = {"api_key": api_key, "query": query, "pageSize": page_size, "pageNumber": page_number}
+        # api_keyはクエリパラメータとして送信
+        url_with_key = f"{self.url}?api_key={api_key}"
+        
+        # JSONペイロードにはapi_keyを含めない
+        payload: Dict[str, Any] = {"query": query, "pageSize": page_size, "pageNumber": page_number}
         if data_types:
             payload["dataType"] = data_types
 
         try:
-            response = requests.post(self.url, json=payload)
+            response = requests.post(url_with_key, json=payload)
             response.raise_for_status()
             return response.json()
         except Exception as e:

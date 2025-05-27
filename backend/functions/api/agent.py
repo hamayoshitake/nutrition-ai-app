@@ -20,9 +20,7 @@ from function_tools.nutrition_tools import (
     get_all_nutrition_entries_tool
 )
 from services.chat_message_service import ChatMessageService
-from function_tools.get_nutrition_search_tool import get_nutrition_search_tool
-from function_tools.get_nutrition_details_tool import get_nutrition_details_tool
-from function_tools.calculate_nutrition_summary_tool import calculate_nutrition_summary_tool
+from function_tools.get_nutrition_info_tool import get_nutrition_info_tool
 
 # フックインスタンス作成
 nutrition_hooks = DetailedNutritionHooks()
@@ -36,7 +34,8 @@ main_agent = Agent(
     重要な動作ルール：
     1. 食事内容の報告時の処理：
        - ユーザーが食事内容を報告した場合、必ずsave_nutrition_entry_toolを使用して栄養記録を保存してください
-       - 栄養情報APIが利用できない場合は、以下の推定値を使用してください：
+       - 栄養情報が必要な場合は、get_nutrition_info_toolで一括取得してください（検索→詳細→整理を自動実行）
+       - APIが利用できない場合は、以下の推定値を使用してください：
          * ご飯100g: カロリー130kcal, タンパク質2.2g, 炭水化物29g, 脂質0.3g
          * 卵1個: カロリー70kcal, タンパク質6g, 炭水化物0.5g, 脂質5g
          * パン1枚: カロリー160kcal, タンパク質6g, 炭水化物28g, 脂質3g
@@ -44,14 +43,13 @@ main_agent = Agent(
        - 保存後に「栄養記録を保存しました」と報告してください
     
     2. 栄養情報の問い合わせ時の処理：
-       - 栄養情報を聞かれた場合は、まずget_nutrition_search_toolで検索を試してください
-       - 検索が失敗した場合のみ、一般的な栄養価を回答してください
-       - 詳細情報が必要な場合はget_nutrition_details_toolを使用してください
+       - 栄養情報を聞かれた場合は、get_nutrition_info_toolで一括取得してください
+       - このツールは検索→詳細取得→整理まで自動実行します
+       - 失敗した場合のみ、一般的な栄養価を回答してください
     
     3. 栄養記録の確認時の処理：
        - 「今日の栄養」「栄養摂取量」「栄養摂取状況」などの問い合わせには、get_nutrition_entries_by_date_toolを使用してください
        - 特定のentry_idが分かっている場合のみget_nutrition_entry_toolを使用してください
-       - 複数の記録がある場合は、calculate_nutrition_summary_toolで合計を計算してください
     
     4. チャット履歴の確認時の処理：
        - 「履歴」「過去の会話」などの問い合わせには、get_chat_messages_toolを使用してください
@@ -63,8 +61,8 @@ main_agent = Agent(
        - 本日の日付は、current_datetimeで取得してください
     
     処理フロー例：
-    - 食事報告 → 推定値で栄養計算 → save_nutrition_entry_toolで保存（各食材1回ずつ） → 保存完了を報告
-    - 栄養問い合わせ → get_nutrition_search_toolで検索 → 結果を回答（失敗時は推定値）
+    - 食事報告 → get_nutrition_info_toolで栄養取得 → save_nutrition_entry_toolで保存 → 保存完了を報告
+    - 栄養問い合わせ → get_nutrition_info_toolで一括取得 → 結果を回答（失敗時は推定値）
     - 栄養記録確認 → get_nutrition_entries_by_date_toolで今日の記録を取得 → 結果を表示
     """,
     tools=[
@@ -73,9 +71,7 @@ main_agent = Agent(
         get_nutrition_entries_by_date_tool,
         get_all_nutrition_entries_tool,
         get_chat_messages_tool,
-        get_nutrition_search_tool,
-        get_nutrition_details_tool,
-        calculate_nutrition_summary_tool
+        get_nutrition_info_tool
     ]
 )
 
@@ -129,7 +125,6 @@ def agent(request):
             current_datetime: {datetime_info['current_datetime']}
             #END_SYSTEM_DATA
         """},
-
         {"role": "user", "content": prompt}
     ]
     print(f"📤 フォーマット済みメッセージ: {formatted_messages}")

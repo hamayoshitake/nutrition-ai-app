@@ -8,9 +8,12 @@ import sys
 import asyncio
 import json
 from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # backend/functions 直下をモジュール検索パスに追加
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+sys.path.append(os.path.abspath(os.path.dirname(os.path.dirname(__file__))))
 
 from agents import Agent, Runner
 from function_tools.get_nutrition_info_tool import get_nutrition_info_tool
@@ -25,9 +28,22 @@ test_agent = Agent(
     
     動作ルール：
     1. 栄養情報を聞かれた場合は、get_nutrition_info_toolで一括取得してください
+        - **重要：日本語の食材名の場合は、まず英語に翻訳してからツールを使用してください**
+        - 翻訳例：
+            * りんご → apple
+            * バナナ → banana
+            * 鶏胸肉 → chicken breast
+            * 鶏肉 → chicken
+            * 牛肉 → beef
+            * 豚肉 → pork
+            * 卵 → egg
+            * ご飯 → rice
+            * パン → bread
+            * 牛乳 → milk
     2. このツールは検索→詳細取得→整理まで自動実行します
     3. 取得した情報を分かりやすく整理して回答してください
     4. エラーが発生した場合は、エラー内容を報告してください
+    5. ツールから取得できなかった場合は、final_outputに『api失敗』と文字列で返してください
     """,
     tools=[get_nutrition_info_tool, save_nutrition_entry_tool]
 )
@@ -46,7 +62,7 @@ async def test_nutrition_agent():
         },
         {
             "prompt": "バナナのカロリーを知りたい",
-            "expected_tool": "get_nutrition_info_tool", 
+            "expected_tool": "get_nutrition_info_tool",
             "description": "カロリー問い合わせテスト"
         },
         {
@@ -69,21 +85,37 @@ async def test_nutrition_agent():
             
             # エージェント実行
             result = await Runner.run(test_agent, messages)
+
+            # print(f"Result raw_responses: {result.raw_responses}")
+            
+            # new_itemsの詳細ログ出力
+            # print(f"Result new_items type: {type(result.new_items)}")
+            # print(f"Result new_items: {result.new_items}")
+            
+            # new_itemsの条件分岐処理
+            if hasattr(result, 'new_items') and result.new_items:
+                # print("✅ new_itemsが存在し、内容があります")
+                # print(f"📊 new_items数: {len(result.new_items)}")
+                
+                for idx, item in enumerate(result.new_items):
+                    # print(f"  📝 Item {idx + 1}:")
+                    # print(f"    - Type: {type(item)}")
+                    # print(f"    - Content: {str(item)[:200]}...")
+                    
+                    # itemがツール呼び出し情報を含むかチェック
+                    if hasattr(item, 'tool_name'):
+                        print(f"    - Tool Name: {item.tool_name}")
+                    if hasattr(item, 'function_calls'):
+                        print(f"    - Function Calls: {item.function_calls}")
+                        
+            elif hasattr(result, 'new_items'):
+                print("⚠️ new_itemsは存在しますが、内容が空です")
+                print(f"📊 new_items値: {result.new_items}")
+            else:
+                print("❌ new_items属性が存在しません")
             
             print(f"✅ 実行成功")
             print(f"🤖 エージェント応答: {result.final_output[:300]}...")
-            
-            # ツール呼び出し確認
-            if hasattr(result, 'tool_calls') and result.tool_calls:
-                called_tools = [call.tool_name for call in result.tool_calls]
-                print(f"🔧 呼び出されたツール: {called_tools}")
-                
-                if test_case['expected_tool'] in called_tools:
-                    print(f"✅ 期待されたツールが呼び出されました")
-                else:
-                    print(f"⚠️ 期待されたツール({test_case['expected_tool']})が呼び出されませんでした")
-            else:
-                print(f"ℹ️ ツール呼び出し情報が取得できませんでした")
             
         except Exception as e:
             print(f"❌ エラー発生: {str(e)}")
@@ -134,4 +166,4 @@ if __name__ == "__main__":
     print("\n" + "="*60)
     asyncio.run(test_nutrition_agent())
     
-    print("\n✅ 全テスト完了") 
+    print("\n✅ 全テスト完了")

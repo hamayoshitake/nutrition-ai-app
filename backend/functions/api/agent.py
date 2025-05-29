@@ -8,6 +8,7 @@ import re
 import uuid
 from typing import Any, Dict, List
 from .utils.header import get_cors_headers
+from .utils.auth_middleware import extract_user_id_from_request
 from .utils.tracing_hooks import DetailedNutritionHooks
 from .utils.datetime_utils import get_system_datetime_info, now_jst, to_jst
 from services.user_service import UserService
@@ -134,8 +135,16 @@ def agent(request):
             headers=headers
         )
 
+    # 認証済みuser_idを取得
+    user_id = extract_user_id_from_request(request)
+    if not user_id:
+        return https_fn.Response(
+            json.dumps({"error": "認証が必要です"}),
+            status=401,
+            headers=headers
+        )
+
     # Cookieヘッダーを取得
-    user_id = "118e326e-66a5-41ce-9ec2-b5553d134f81"
     session_id = request.cookies.get("session_id")
     if not session_id:
         session_id = str(uuid.uuid4())

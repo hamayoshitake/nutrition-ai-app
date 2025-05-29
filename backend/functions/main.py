@@ -11,4 +11,4 @@ def helloWorld(request):
 
 # 必要な API エンドポイントをインポートして登録
 from api.agent import agent
-from api.users import createUser
+from api.users import createUserProfile

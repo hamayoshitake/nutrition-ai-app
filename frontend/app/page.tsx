@@ -4,7 +4,9 @@ import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Mic, Send } from "lucide-react"
+import { Mic, Send, LogOut } from "lucide-react"
+import ProtectedRoute from "@/components/ProtectedRoute"
+import { useAuth } from "@/contexts/AuthContext"
 
 interface Message {
   id: string
@@ -13,21 +15,31 @@ interface Message {
   timestamp: string
 }
 
-export default function ChatPage() {
+function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isComposing, setIsComposing] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const { user, logout, getValidToken } = useAuth()
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSendMessage = async () => {
-    if (inputValue.trim() === "") return
+  const handleLogout = async () => {
+    try {
+      await logout()
+    } catch (error) {
+      console.error('ログアウトエラー:', error)
+    }
+  }
 
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || isLoading) return
+
+    // ユーザーメッセージを追加
     const userMessage: Message = {
       id: Date.now().toString(),
       content: inputValue,
@@ -36,17 +48,25 @@ export default function ChatPage() {
     }
     setMessages((prev) => [...prev, userMessage])
     setInputValue("")
-
-    // ローディング開始
     setIsLoading(true)
 
     // agentsChat エンドポイントへリクエスト
     try {
+      // 新しいgetValidToken関数を使用
+      const idToken = await getValidToken()
+      
+      if (!idToken) {
+        throw new Error('認証トークンの取得に失敗しました')
+      }
+      
       const res = await fetch(
         "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agent",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${idToken}`
+          },
           credentials: "include",
           body: JSON.stringify({ prompt: inputValue }),
         }
@@ -81,6 +101,17 @@ export default function ChatPage() {
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-gray-50">
+      {/* Header with logout */}
+      <div className="flex justify-between items-center p-4 bg-white border-b">
+        <h1 className="text-lg font-semibold">MY BODY COACH</h1>
+        <div className="flex items-center space-x-2">
+          <span className="text-sm text-gray-600">{user?.email}</span>
+          <Button variant="ghost" size="sm" onClick={handleLogout}>
+            <LogOut className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.map((message) => (
@@ -88,7 +119,7 @@ export default function ChatPage() {
             {!message.isUser && (
               <Avatar className="h-8 w-8 mr-2 mt-1">
                 <AvatarImage src="/placeholder.svg?height=32&width=32" />
-                <AvatarFallback>VN</AvatarFallback>
+                <AvatarFallback>BC</AvatarFallback>
               </Avatar>
             )}
 
@@ -110,7 +141,7 @@ export default function ChatPage() {
           <div className="flex justify-start">
             <Avatar className="h-8 w-8 mr-2 mt-1">
               <AvatarImage src="/placeholder.svg?height=32&width=32" />
-              <AvatarFallback>VN</AvatarFallback>
+              <AvatarFallback>BC</AvatarFallback>
             </Avatar>
             <div className="max-w-[75%]">
               <div className="p-3 rounded-2xl bg-white border border-gray-200">
@@ -159,5 +190,13 @@ export default function ChatPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function Page() {
+  return (
+    <ProtectedRoute>
+      <ChatPage />
+    </ProtectedRoute>
   )
 }

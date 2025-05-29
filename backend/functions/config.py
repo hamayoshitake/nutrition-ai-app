@@ -17,6 +17,10 @@ DEBUG = os.getenv('DEBUG', 'True').lower() == 'true'
 FIREBASE_PROJECT_ID = os.getenv('FIREBASE_PROJECT_ID', 'nutrition-ai-app')
 FIRESTORE_EMULATOR_HOST = os.getenv('FIRESTORE_EMULATOR_HOST')
 
+# Firebase Authentication トークン設定
+FIREBASE_ID_TOKEN_EXPIRY_MINUTES = 30  # IDトークン有効期限: 30分
+FIREBASE_REFRESH_TOKEN_EXPIRY_DAYS = 7  # リフレッシュトークン有効期限: 1週間
+
 # OpenAI設定
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o')

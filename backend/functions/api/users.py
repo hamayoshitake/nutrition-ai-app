@@ -48,7 +48,7 @@ def createUserProfile(request):
         
         if success:
             return https_fn.Response(
-                json.dumps({"success": True, "firebase_uid": firebase_uid}),
+                    json.dumps({"success": True, "firebase_uid": firebase_uid}),
                 status=200,
                 headers=headers
             )

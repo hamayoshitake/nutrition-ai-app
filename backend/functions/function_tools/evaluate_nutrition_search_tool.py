@@ -550,7 +550,7 @@ def _calculate_relevance_score_enhanced(foods: List[Dict], query: str, target_fo
         target_match = 0.0
         if target_lower:
             target_words = set(target_lower.split())
-            target_match = len(target_words.intersection(desc_words)) / len(target_words) if target_words else 0
+        target_match = len(target_words.intersection(desc_words)) / len(target_words) if target_words else 0
         
         # 総合スコア
         relevance = max(exact_match, sequence_similarity * 0.7, keyword_match * 0.8, target_match * 0.9)
@@ -726,7 +726,7 @@ def _get_grade(score: float) -> str:
 
 def _get_assessment_summary_enhanced(score: float, result_count: int, total_hits: int) -> str:
     """拡張された評価サマリー"""
-    
+
     grade = _get_grade(score)
     
     if score >= 0.8:

@@ -21,17 +21,20 @@ from function_tools.nutrition_tools import (
 )
 from services.chat_message_service import ChatMessageService
 from function_tools.get_nutrition_info_tool import get_nutrition_info_tool
+from function_tools.get_nutrition_search_guidance_tool import get_nutrition_search_guidance_tool
+from function_tools.evaluate_nutrition_search_tool import evaluate_nutrition_search_tool
 
 # フックインスタンス作成
 nutrition_hooks = DetailedNutritionHooks()
 
 main_agent = Agent(
-    name="MainAgent",
+    name="MY BODY COACH Agent",
     model="gpt-4o-mini",
     instructions="""
-    ユーザーとの自然な対話を行うトップレベルエージェントです。
+    あなたは「MY BODY COACH」アプリのメインエージェントです。ユーザーの健康管理をサポートする専門的なアシスタントとして動作します。
     
     重要な動作ルール：
+    
     1. 食事内容の報告時の処理：
        - ユーザーが食事内容を報告した場合、必ずsave_nutrition_entry_toolを使用して栄養記録を保存してください
        - 栄養情報が必要な場合は、get_nutrition_info_toolで一括取得してください（検索→詳細→整理を自動実行）
@@ -43,9 +46,11 @@ main_agent = Agent(
        - 保存後に「栄養記録を保存しました」と報告してください
     
     2. 栄養情報の問い合わせ時の処理：
-       - 栄養情報を聞かれた場合は、get_nutrition_info_toolで一括取得してください
-       - このツールは検索→詳細取得→整理まで自動実行します
-       - 失敗した場合のみ、一般的な栄養価を回答してください
+        - 栄養情報を聞かれた場合は、まずget_nutrition_search_guidance_toolで検索ガイダンスを取得してください
+        - 日本語の食材名の場合は、翻訳提案を含むガイダンスを取得してください
+        - ガイダンスに基づいて改善されたクエリでget_nutrition_info_toolを実行してください
+        - 検索結果が得られた場合は、evaluate_nutrition_search_toolで結果の品質を評価してください
+        - 検索が失敗した場合のみ、一般的な栄養価を回答してください
     
     3. 栄養記録の確認時の処理：
        - 「今日の栄養」「栄養摂取量」「栄養摂取状況」などの問い合わせには、get_nutrition_entries_by_date_toolを使用してください
@@ -54,7 +59,24 @@ main_agent = Agent(
     4. チャット履歴の確認時の処理：
        - 「履歴」「過去の会話」などの問い合わせには、get_chat_messages_toolを使用してください
     
-    5. ツール使用の原則：
+    5. 栄養検索ガイダンスの提供：
+       - 「検索方法」「どう検索すれば」「検索のコツ」などの問い合わせには、get_nutrition_search_guidance_toolを使用してください
+       - 日本語の食材名が含まれる場合は、user_inputパラメータに含めて翻訳提案を取得してください
+       - 食材カテゴリ（meat, fruit, vegetable等）や検索意図（basic_nutrition, high_protein等）が明確な場合は適切に指定してください
+       - ガイダンス結果を分かりやすく整理して、具体的な検索例と改善提案を提示してください
+    
+    6. 検索結果の評価・改善提案：
+       - 「検索結果を評価して」「この結果はどう？」などの問い合わせには、evaluate_nutrition_search_toolを使用してください
+       - 検索クエリと結果データが提供された場合、適切な評価フォーカス（accuracy, completeness, relevance）を選択してください
+       - 評価結果のスコア、グレード、改善提案を分かりやすく説明してください
+       - 次のステップや代替検索戦略も提案してください
+    
+    7. 統合ワークフロー：
+       - 検索ガイダンス → 実際の検索 → 結果評価 → 改善提案の流れを適切に実行してください
+       - 日本語入力の場合は、翻訳提案 → 英語検索 → 結果評価の流れを推奨してください
+       - エラーが発生した場合は、フォールバック戦略を提示してください
+    
+    8. ツール使用の原則：
        - 同じツールを連続して複数回呼び出さないでください
        - エラーが発生した場合は、1回だけリトライしてください
        - ツールが失敗した場合は、推定値や一般的な情報で回答してください
@@ -62,8 +84,17 @@ main_agent = Agent(
     
     処理フロー例：
     - 食事報告 → get_nutrition_info_toolで栄養取得 → save_nutrition_entry_toolで保存 → 保存完了を報告
-    - 栄養問い合わせ → get_nutrition_info_toolで一括取得 → 結果を回答（失敗時は推定値）
+    - 栄養問い合わせ → get_nutrition_info_toolで一括取得 → 結果を回答（失敗時は、失敗しましたと返す）
     - 栄養記録確認 → get_nutrition_entries_by_date_toolで今日の記録を取得 → 結果を表示
+    - 検索ガイダンス → get_nutrition_search_guidance_toolでガイダンス取得 → 具体的な提案を提示
+    - 検索結果評価 → evaluate_nutrition_search_toolで評価実行 → スコアと改善提案を提示
+    - 統合ワークフロー → ガイダンス取得 → 検索実行 → 結果評価 → 次のステップ提案
+    
+    応答スタイル：
+    - 親しみやすく、専門的でありながら分かりやすい説明を心がけてください
+    - 健康管理のパートナーとして、励ましとサポートの姿勢を示してください
+    - 具体的な数値やデータを提示する際は、その意味や重要性も説明してください
+    - エラーや問題が発生した場合も、代替案や解決策を積極的に提案してください
     """,
     tools=[
         save_nutrition_entry_tool,
@@ -71,7 +102,9 @@ main_agent = Agent(
         get_nutrition_entries_by_date_tool,
         get_all_nutrition_entries_tool,
         get_chat_messages_tool,
-        get_nutrition_info_tool
+        get_nutrition_info_tool,
+        get_nutrition_search_guidance_tool,
+        evaluate_nutrition_search_tool
     ]
 )
 
@@ -123,6 +156,7 @@ def agent(request):
             user_id: {user_id}
             session_id: {session_id}
             current_datetime: {datetime_info['current_datetime']}
+            app_name: MY BODY COACH
             #END_SYSTEM_DATA
         """},
         {"role": "user", "content": prompt}
@@ -141,7 +175,7 @@ def agent(request):
         print(f"🚀 エージェント実行開始...")
         
         # トレーシング付きでエージェントを実行
-        with trace("Nutrition Agent Workflow", metadata={"user_id": user_id, "session_id": session_id, "prompt": prompt[:100]}):
+        with trace("MY BODY COACH Agent Workflow", metadata={"user_id": user_id, "session_id": session_id, "prompt": prompt[:100]}):
             result = asyncio.run(
                 Runner.run(
                     main_agent,

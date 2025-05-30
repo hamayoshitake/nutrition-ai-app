@@ -22,7 +22,7 @@ FIREBASE_ID_TOKEN_EXPIRY_MINUTES = 30  # IDトークン有効期限: 30分
 FIREBASE_REFRESH_TOKEN_EXPIRY_DAYS = 7  # リフレッシュトークン有効期限: 1週間
 
 # OpenAI設定
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
+# OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')  # 削除：Firebase Secretsを使用
 OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o')
 
 # タイムゾーン設定
@@ -67,7 +67,7 @@ class Config:
     FIRESTORE_EMULATOR_HOST = FIRESTORE_EMULATOR_HOST
     
     # OpenAI設定
-    OPENAI_API_KEY = OPENAI_API_KEY
+    # OPENAI_API_KEY = OPENAI_API_KEY
     OPENAI_MODEL = OPENAI_MODEL
     
     # API設定

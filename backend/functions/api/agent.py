@@ -123,17 +123,20 @@ def agent(request):
     print("🚀 === Agent関数開始 ===")
     print(f"📍 リクエスト受信時刻: {now_jst()}")
     
-    # OPENAI_API_KEYの確認
+    # OPENAI_API_KEYの確認（シークレットから取得）
     try:
-        openai_key = os.environ.get("OPENAI_API_KEY")
+        # Firebase Functionsのシークレット機能を使用してOPENAI_API_KEYを取得
+        openai_key = request.secrets.get("OPENAI_API_KEY")
         if openai_key:
-            print(f"✅ OPENAI_API_KEY取得成功: {openai_key[:10]}...")
+            print(f"✅ OPENAI_API_KEY取得成功（シークレットから）: {openai_key[:10]}...")
+            # 環境変数として設定（OpenAIライブラリが参照できるように）
+            os.environ["OPENAI_API_KEY"] = openai_key
         else:
-            print("❌ OPENAI_API_KEYが設定されていません")
+            print("❌ OPENAI_API_KEYがシークレットから取得できません")
     except Exception as e:
         print(f"❌ OPENAI_API_KEY取得エラー: {e}")
     
-    headers = get_cors_headers()
+    headers = get_cors_headers(request)
     print(f"📋 CORS headers設定完了: {headers}")
     
     # OPTIONS プレフライト対応

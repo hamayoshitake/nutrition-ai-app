@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Mic, Send, LogOut } from "lucide-react"
 import ProtectedRoute from "@/components/ProtectedRoute"
 import { useAuth } from "@/contexts/AuthContext"
+import { config } from "@/lib/config"
 
 interface Message {
   id: string
@@ -60,7 +61,7 @@ function ChatPage() {
       }
       
       const res = await fetch(
-        "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agent",
+        config.getApiUrl(config.endpoints.agent),
         {
           method: "POST",
           headers: { 

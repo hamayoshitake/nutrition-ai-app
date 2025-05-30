@@ -13,6 +13,9 @@
     ]
   },
   "emulators": {
+    "auth": {
+      "port": 9099
+    },
     "functions": {
       "port": 5001
     },
@@ -22,6 +25,11 @@
     "ui": {
       "enabled": true,
       "port": 4401
-    }
+    },
+    "singleProjectMode": true
+  },
+  "firestore": {
+    "rules": "backend/firestore.rules",
+    "indexes": "backend/firestore.indexes.json"
   }
 }

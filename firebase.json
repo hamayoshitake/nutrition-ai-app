@@ -1,9 +1,12 @@
 {
   "functions": {
     "source": "backend/functions",
-    "codebase": "default",
+    "codebase": "default", 
     "runtime": "python312",
-    "timeoutSeconds": 300,
+    "timeoutSeconds": 540,
+    "memory": "1GB",
+    "minInstances": 1,
+    "maxInstances": 10,
     "ignore": [
       "venv",
       ".git",

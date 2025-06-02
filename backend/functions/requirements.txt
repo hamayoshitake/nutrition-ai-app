@@ -1,5 +1,5 @@
 firebase_functions~=0.1.0
 firebase-admin>=6.0.0
-openai>=0.27.0
 python-dotenv>=0.21.0
-openai-agents>=0.0.13
+openai-agents>=0.0.15
+openai>=1.76.0,<2.0.0

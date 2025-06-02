@@ -1,40 +1,54 @@
 from firebase_admin import firestore
 from datetime import datetime
-import uuid
 
 class UsersRepository:
     def __init__(self):
         self.db = firestore.client()
         self.col = self.db.collection("users")
 
-    def create_user(self, email: str, password_hash: str, name: str | None = None) -> str:
-        user_id = str(uuid.uuid4())
+    def create_user_profile(self, firebase_uid: str, email: str, name: str | None = None) -> bool:
+        """Firebase AuthenticationのUIDを使ってFirestoreにユーザープロフィールを作成"""
         now = datetime.utcnow().isoformat()
         data = {
-            "id": user_id,
+            "firebase_uid": firebase_uid,
             "email": email,
-            "password_hash": password_hash,
             "name": name,
             "created_at": now,
             "updated_at": now,
         }
-        self.col.document(user_id).set(data)
-        return user_id
+        # Firebase UIDをドキュメントIDとして使用
+        self.col.document(firebase_uid).set(data)
+        return True
 
-    def get_user_by_id(self, user_id: str) -> dict | None:
-        doc = self.col.document(user_id).get()
+    def get_user_profile(self, firebase_uid: str) -> dict | None:
+        """Firebase UIDでユーザープロフィールを取得"""
+        doc = self.col.document(firebase_uid).get()
         return doc.to_dict() if doc.exists else None
 
-    def get_user_by_email(self, email: str) -> dict | None:
-        qs = self.col.where("email", "==", email).limit(1).get()
-        return qs[0].to_dict() if qs else None
-
-    def update_user(self, user_id: str, **fields) -> bool:
+    def update_user_profile(self, firebase_uid: str, **fields) -> bool:
+        """ユーザープロフィールを更新"""
         if not fields:
             return False
+        
         fields["updated_at"] = datetime.utcnow().isoformat()
-        doc_ref = self.col.document(user_id)
+        doc_ref = self.col.document(firebase_uid)
+        
         if doc_ref.get().exists:
             doc_ref.update(fields)
             return True
         return False
+
+    def get_user_id_by_session(self, session_id: str) -> str | None:
+        """セッションIDからFirebase UIDを取得"""
+        docs = (
+            self.db
+            .collection_group("chat_sessions")
+            .where("id", "==", session_id)
+            .limit(1)
+            .get()
+        )
+        if not docs:
+            return None
+        # dict型に変換
+        data = docs[0].to_dict()
+        return data.get("user_id")

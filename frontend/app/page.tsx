@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, useCallback, memo } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -13,7 +13,7 @@ interface Message {
   timestamp: string
 }
 
-function ChatPage() {
+export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([])
   const [inputValue, setInputValue] = useState("")
   const [isComposing, setIsComposing] = useState(false)
@@ -25,7 +25,7 @@ function ChatPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-  const handleSendMessage = useCallback(async () => {
+  const handleSendMessage = async () => {
     if (inputValue.trim() === "") return
 
     const userMessage: Message = {
@@ -42,12 +42,14 @@ function ChatPage() {
 
     // agentsChat エンドポイントへリクエスト
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agent"
-      const res = await fetch(apiUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: inputValue }),
-      })
+      const res = await fetch(
+        "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agent",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ prompt: inputValue }),
+        }
+      )
       const data = await res.json()
       // レスポンスステータスに応じて表示するメッセージを選択
       const messageText = res.ok
@@ -74,7 +76,7 @@ function ChatPage() {
       // ローディング終了
       setIsLoading(false)
     }
-  }, [inputValue])
+  }
 
   return (
     <div className="flex flex-col h-screen max-w-md mx-auto bg-gray-50">
@@ -158,5 +160,3 @@ function ChatPage() {
     </div>
   )
 }
-
-export default memo(ChatPage)

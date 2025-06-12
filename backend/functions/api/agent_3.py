@@ -80,14 +80,7 @@ class NutritionContext(BaseModel):
     }
 
 
-# 共通のHTTP関連関数
-def get_cors_headers():
-    return {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
-    }
+from .utils.cors import get_cors_headers
 
 
 # エージェント定義
@@ -168,8 +161,7 @@ def agent(request):
     if request.method == "OPTIONS":
         return https_fn.Response("", status=204, headers=headers)
 
-    # （開発中はダミーの）ユーザーIDを取得
-    user_id = "5e550382-1cfb-4d30-8403-33e63548b5db"
+    user_id = request.headers.get("X-User-ID", "5e550382-1cfb-4d30-8403-33e63548b5db")
 
     # セッションIDのチェック／作成
     session_id = request.cookies.get("session_id")
@@ -225,16 +217,9 @@ def agent(request):
     
     try:
         with trace("nutrition-workflow", group_id=conversation_id):
-            # 非同期処理を同期的に実行する
-            try:
-                loop = asyncio.get_running_loop()
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-            
             # エージェント実行
             print("エージェントの実行を開始します...")
-            result = loop.run_until_complete(
+            result = asyncio.run(
                 Runner.run(nutrition_agent, formatted_messages)
             )
             print("エージェントの実行が完了しました")
@@ -285,7 +270,7 @@ def agent(request):
                         # formatter_agentを呼び出して応答を整形
                         print("メッセージ整形エージェントを呼び出します...")
                         formatter_input = [{"role": "user", "content": user_message}]
-                        formatter_result = loop.run_until_complete(
+                        formatter_result = asyncio.run(
                             Runner.run(formatter_agent, formatter_input)
                         )
                         formatted_message = formatter_result.final_output

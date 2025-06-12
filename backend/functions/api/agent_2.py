@@ -4,13 +4,7 @@ from firebase_functions import https_fn
 from agents import Agent, Runner, trace
 from function_tools.chat_tools import create_chat_message_tool, get_chat_messages_tool
 
-def get_cors_headers():
-    return {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
-    }
+from .utils.cors import get_cors_headers
 
 def check_session_cookie(request):
     session_id = request.cookies.get("session_id")
@@ -62,5 +56,5 @@ def agent(request):
     if not text:
         return {"error": "prompt フィールドが必要です"}, 400
     with trace("nutrition-workflow"):
-        result = Runner.run(nutrition_agent, text)
+        result = asyncio.run(Runner.run(nutrition_agent, text))
     return https_fn.Response(json.dumps({"message": result.final_output}), status=200, headers=headers)

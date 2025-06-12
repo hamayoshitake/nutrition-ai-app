@@ -5,7 +5,7 @@ from agents import Agent, Runner, trace, RunHooks, RunContextWrapper, Usage, Too
 from datetime import datetime
 import re
 from typing import Any
-from .utils.header import get_cors_headers
+from .utils.cors import get_cors_headers
 
 # ライフサイクルフック定義
 class NutritionHooks(RunHooks):

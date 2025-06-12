@@ -42,14 +42,12 @@ export default function ChatPage() {
 
     // agentsChat エンドポイントへリクエスト
     try {
-      const res = await fetch(
-        "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agent",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ prompt: inputValue }),
-        }
-      )
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/agent"
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: inputValue }),
+      })
       const data = await res.json()
       // レスポンスステータスに応じて表示するメッセージを選択
       const messageText = res.ok

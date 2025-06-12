@@ -86,7 +86,7 @@ export default function ChatPage() {
           <div key={message.id} className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}>
             {!message.isUser && (
               <Avatar className="h-8 w-8 mr-2 mt-1">
-                <AvatarImage src="/placeholder.svg?height=32&width=32" />
+                <AvatarImage src="/avatar.png" />
                 <AvatarFallback>VN</AvatarFallback>
               </Avatar>
             )}
@@ -108,7 +108,7 @@ export default function ChatPage() {
         {isLoading && (
           <div className="flex justify-start">
             <Avatar className="h-8 w-8 mr-2 mt-1">
-              <AvatarImage src="/placeholder.svg?height=32&width=32" />
+              <AvatarImage src="/avatar.png" />
               <AvatarFallback>VN</AvatarFallback>
             </Avatar>
             <div className="max-w-[75%]">

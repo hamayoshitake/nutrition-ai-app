@@ -5,13 +5,7 @@ from repositories.users_repository import UsersRepository
 
 # CORS設定
 
-def get_cors_headers():
-    return {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Content-Type": "application/json"
-    }
+from .utils.cors import get_cors_headers
 
 @https_fn.on_request()
 def createUser(request):

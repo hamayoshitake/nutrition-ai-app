@@ -8,7 +8,6 @@ import re
 import uuid
 from typing import Any, Dict, List
 from .utils.header import get_cors_headers
-from .utils.auth_middleware import extract_user_id_from_request
 from .utils.tracing_hooks import DetailedNutritionHooks
 from .utils.datetime_utils import get_system_datetime_info, now_jst, to_jst
 from services.user_service import UserService
@@ -35,18 +34,10 @@ main_agent = Agent(
     あなたは「MY BODY COACH」アプリのメインエージェントです。ユーザーの健康管理をサポートする専門的なアシスタントとして動作します。
     
     重要な動作ルール：
-    重要な注意事項：
-    - 既存の栄養記録に栄養情報が不足している場合は、必ずget_nutrition_search_guidance_toolを使用してから検索を実行してください
-    - 推定値の使用は、ガイダンス→検索の両方が失敗した場合の最後の手段です
-    - 栄養情報の問い合わせでは、必ずガイダンス→検索→評価の順序で実行してください
-
     
     1. 食事内容の報告時の処理：
-       - ユーザーが食事内容を報告した場合、以下の順序で処理してください
-       - まずget_nutrition_search_guidance_toolで検索ガイダンスを取得してください
-       - 日本語の食材名の場合は、翻訳提案を含むガイダンスを取得してください
-       - ガイダンスに基づいてget_nutrition_info_toolで栄養情報を取得してください
-       - 栄養情報取得後、save_nutrition_entry_toolを使用して栄養記録を保存してください
+       - ユーザーが食事内容を報告した場合、必ずsave_nutrition_entry_toolを使用して栄養記録を保存してください
+       - 栄養情報が必要な場合は、get_nutrition_info_toolで一括取得してください（検索→詳細→整理を自動実行）
        - APIが利用できない場合は、以下の推定値を使用してください：
          * ご飯100g: カロリー130kcal, タンパク質2.2g, 炭水化物29g, 脂質0.3g
          * 卵1個: カロリー70kcal, タンパク質6g, 炭水化物0.5g, 脂質5g
@@ -92,8 +83,8 @@ main_agent = Agent(
        - 本日の日付は、current_datetimeで取得してください
     
     処理フロー例：
-    - 食事報告 → get_nutrition_search_guidance_tool → get_nutrition_info_tool → save_nutrition_entry_tool → 保存完了を報告
-    - 栄養問い合わせ → get_nutrition_search_guidance_tool → get_nutrition_info_tool → evaluate_nutrition_search_tool → 結果を回答
+    - 食事報告 → get_nutrition_info_toolで栄養取得 → save_nutrition_entry_toolで保存 → 保存完了を報告
+    - 栄養問い合わせ → get_nutrition_info_toolで一括取得 → 結果を回答（失敗時は、失敗しましたと返す）
     - 栄養記録確認 → get_nutrition_entries_by_date_toolで今日の記録を取得 → 結果を表示
     - 検索ガイダンス → get_nutrition_search_guidance_toolでガイダンス取得 → 具体的な提案を提示
     - 検索結果評価 → evaluate_nutrition_search_toolで評価実行 → スコアと改善提案を提示
@@ -118,184 +109,73 @@ main_agent = Agent(
 )
 
 # HTTP関数
-@https_fn.on_request(timeout_sec=540, secrets=[params.SecretParam("OPENAI_API_KEY")])
+@https_fn.on_request(timeout_sec=120, secrets=[params.SecretParam("OPENAI_API_KEY")])
 def agent(request):
-    print("🚀 === Agent関数開始 ===")
-    print(f"📍 リクエスト受信時刻: {now_jst()}")
-    
-    headers = get_cors_headers(request)
-    print(f"📋 CORS headers設定完了: {headers}")
-    
+    headers = get_cors_headers()
     # OPTIONS プレフライト対応
     if request.method == "OPTIONS":
-        print("✅ OPTIONSリクエスト処理 - 204レスポンス返却")
         return https_fn.Response("", status=204, headers=headers)
 
-    print(f"📥 リクエストメソッド: {request.method}")
-    print(f"📥 リクエストヘッダー: {dict(request.headers)}")
-    print(f"📥 リクエストURL: {request.url}")
-    print(f"📥 リクエストパス: {request.path}")
-
-    # リクエストボディの詳細ログ
-    try:
-        print("📦 リクエストボディ解析開始...")
-        body = request.get_json(silent=True) or {}
-        print(f"📦 解析されたボディ: {body}")
-        
-        prompt = body.get("prompt")
-        print(f"📝 抽出されたプロンプト: {prompt}")
-        
-        if not prompt:
-            print("❌ promptフィールドが見つかりません")
-            return https_fn.Response(
-                json.dumps({"error": "prompt フィールドが必要です"}),
-                status=400,
-                headers=headers
-            )
-        print("✅ プロンプト取得成功")
-    except Exception as e:
-        print(f"❌ リクエストボディ解析エラー: {e}")
+    # リクエストボディからプロンプトを取得
+    body = request.get_json(silent=True) or {}
+    prompt = body.get("prompt")
+    if not prompt:
         return https_fn.Response(
-            json.dumps({"error": f"リクエスト解析エラー: {str(e)}"}),
+            json.dumps({"error": "prompt フィールドが必要です"}),
             status=400,
             headers=headers
         )
 
-    # 認証処理の詳細ログ
-    try:
-        print("🔐 認証処理開始...")
-        user_id = extract_user_id_from_request(request)
-        print(f"🔐 認証結果: user_id={user_id}")
-        
-        if not user_id:
-            print("❌ 認証失敗 - user_idが取得できません")
-            return https_fn.Response(
-                json.dumps({"error": "認証が必要です"}),
-                status=401,
-                headers=headers
-            )
-        print("✅ 認証成功")
-    except Exception as e:
-        print(f"❌ 認証処理エラー: {e}")
-        return https_fn.Response(
-            json.dumps({"error": f"認証エラー: {str(e)}"}),
-            status=401,
-            headers=headers
-        )
-
-    # セッション処理の詳細ログ
-    try:
-        print("🍪 セッション処理開始...")
-        session_id = request.cookies.get("session_id")
-        print(f"🍪 既存セッションID: {session_id}")
-        
-        if not session_id:
-            session_id = str(uuid.uuid4())
-            print(f"🆕 新しいセッションID生成: {session_id}")
-            ChatSessionService().create_session(user_id)
-            print("✅ 新しいセッション作成完了")
-        else:
-            print("✅ 既存セッション使用")
-    except Exception as e:
-        print(f"❌ セッション処理エラー: {e}")
-        # セッションエラーでも処理を続行
+    # Cookieヘッダーを取得
+    user_id = "118e326e-66a5-41ce-9ec2-b5553d134f81"
+    session_id = request.cookies.get("session_id")
+    if not session_id:
         session_id = str(uuid.uuid4())
-        print(f"🔄 フォールバック: 新しいセッションID: {session_id}")
+        ChatSessionService().create_session(user_id)
 
-    # 日時情報取得の詳細ログ
-    try:
-        print("🕐 日時情報取得開始...")
-        datetime_info = get_system_datetime_info()
-        current_jst = now_jst()
-        print(f"🕐 日時情報取得成功: {datetime_info}")
-        print(f"🕐 現在の日本時間: {current_jst}")
-    except Exception as e:
-        print(f"❌ 日時情報取得エラー: {e}")
-        datetime_info = {"current_datetime": "取得失敗", "error": str(e)}
-        current_jst = now_jst()
+    # 日本時間の詳細情報を取得
+    datetime_info = get_system_datetime_info()
+    current_jst = now_jst()
 
-    print(f"🔍 === 処理パラメータ確認 ===")
-    print(f"👤 user_id: {user_id}")
-    print(f"🆔 session_id: {session_id}")
-    print(f"📝 prompt: {prompt[:100]}...")
-    print(f"🕐 current_jst: {current_jst}")
-    print(f"🔍 === パラメータ確認終了 ===")
+    print(f"🔍 リクエスト詳細: user_id={user_id}, session_id={session_id}")
+    print(f"📝 ユーザープロンプト: {prompt}")
+    print(f"🕐 現在の日本時間: {datetime_info['current_datetime']}")
 
-    # プロンプト分析の詳細ログ
-    try:
-        print("🔍 プロンプト分析開始...")
-        prompt_analysis = nutrition_hooks.analyze_prompt_for_tools(prompt)
-        print(f"🔍 === プロンプト分析結果 ===")
-        print(f"📝 プロンプトタイプ: {prompt_analysis['prompt_type']}")
-        print(f"🔑 検出キーワード: {prompt_analysis['keywords']}")
-        print(f"🔧 期待されるツール: {prompt_analysis['expected_tools']}")
-        print(f"🔍 === 分析結果終了 ===")
-    except Exception as e:
-        print(f"❌ プロンプト分析エラー: {e}")
-        prompt_analysis = {
-            'prompt_type': 'unknown',
-            'keywords': [],
-            'expected_tools': []
-        }
+    # プロンプト分析を実行
+    prompt_analysis = nutrition_hooks.analyze_prompt_for_tools(prompt)
+    print(f"\n🔍 === プロンプト分析結果 ===")
+    print(f"📝 プロンプトタイプ: {prompt_analysis['prompt_type']}")
+    print(f"🔑 検出キーワード: {prompt_analysis['keywords']}")
+    print(f"🔧 期待されるツール: {prompt_analysis['expected_tools']}")
+    print(f"🔍 === 分析結果終了 ===\n")
 
-    # メッセージ形式作成の詳細ログ
-    try:
-        print("📤 メッセージ形式作成開始...")
-        formatted_messages = [
-            {"role": "system", "content": f"""#SYSTEM_DATA
-                user_id: {user_id}
-                session_id: {session_id}
-                current_datetime: {datetime_info['current_datetime']}
-                app_name: MY BODY COACH
-                #END_SYSTEM_DATA
-            """},
-            {"role": "user", "content": prompt}
-        ]
-        print(f"📤 システムメッセージ作成完了")
-        print(f"📤 ユーザーメッセージ作成完了")
-        print(f"📤 総メッセージ数: {len(formatted_messages)}")
-    except Exception as e:
-        print(f"❌ メッセージ形式作成エラー: {e}")
-        return https_fn.Response(
-            json.dumps({"error": f"メッセージ作成エラー: {str(e)}"}),
-            status=500,
-            headers=headers
-        )
+    # メッセージ形式 - システムメッセージに詳細な日時情報を含める
+    print(f"🔒 システムデータ生成: user_id={user_id}, session_id={session_id}")
+    formatted_messages = [
+        {"role": "system", "content": f"""#SYSTEM_DATA
+            user_id: {user_id}
+            session_id: {session_id}
+            current_datetime: {datetime_info['current_datetime']}
+            app_name: MY BODY COACH
+            #END_SYSTEM_DATA
+        """},
+        {"role": "user", "content": prompt}
+    ]
+    print(f"📤 フォーマット済みメッセージ: {formatted_messages}")
 
-    # ユーザーメッセージ保存の詳細ログ
-    try:
-        print(f"💾 ユーザーメッセージ保存開始...")
-        print(f"💾 保存パラメータ: user_id={user_id}, session_id={session_id}, role=user")
-        ChatMessageService().save_message(user_id, session_id, "user", prompt)
-        print(f"✅ ユーザーメッセージ保存完了")
-    except Exception as e:
-        print(f"❌ ユーザーメッセージ保存エラー: {e}")
-        # 保存エラーでも処理を続行
 
-    # フックリセットの詳細ログ
-    try:
-        print("🔄 フックリセット開始...")
-        nutrition_hooks.reset()
-        print("✅ フックリセット完了")
-    except Exception as e:
-        print(f"❌ フックリセットエラー: {e}")
+    print(f"💾 ユーザーメッセージを保存中...")
+    ChatMessageService().save_message(user_id, session_id, "user", prompt)
+    print(f"✅ ユーザーメッセージ保存完了")
+
+    # フックをリセット（新しいリクエストのため）
+    nutrition_hooks.reset()
 
     try:
-        print(f"🚀 === エージェント実行開始 ===")
-        print(f"🤖 エージェント名: {main_agent.name}")
-        print(f"🧠 モデル: {main_agent.model}")
-        print(f"🔧 利用可能ツール数: {len(main_agent.tools)}")
-        
-        # エージェント実行前の最終確認
-        print(f"📋 実行前チェック:")
-        print(f"  - メッセージ数: {len(formatted_messages)}")
-        print(f"  - フック準備: ✅")
-        print(f"  - トレーシング準備: ✅")
+        print(f"🚀 エージェント実行開始...")
         
         # トレーシング付きでエージェントを実行
-        print("🔍 トレーシング開始...")
         with trace("MY BODY COACH Agent Workflow", metadata={"user_id": user_id, "session_id": session_id, "prompt": prompt[:100]}):
-            print("🏃 Runner.run実行開始...")
             result = asyncio.run(
                 Runner.run(
                     main_agent,
@@ -303,32 +183,28 @@ def agent(request):
                     hooks=nutrition_hooks
                 )
             )
-            print("✅ Runner.run実行完了")
 
-        print(f"🎯 エージェント実行完了")
-        
-        # 結果の詳細ログ
+        # エージェントの応答を取得
         agent_response = result.final_output
-        print(f"🤖 Agent応答長: {len(agent_response)} 文字")
-        print(f"🤖 Agent応答プレビュー: {agent_response[:200]}...")
+        print(f"🤖 Agent応答: {agent_response[:100]}...")
 
-        # 実行サマリーの詳細ログ
-        print("📊 実行サマリー取得開始...")
+        # 実行サマリーを出力
         summary = nutrition_hooks.get_summary()
-        print(f"📊 === 実行サマリー ===")
+        print(f"\n📊 === 実行サマリー ===")
         print(f"📈 総イベント数: {summary['total_events']}")
         print(f"🔨 ツール呼び出し数: {summary['tool_call_count']}")
         print(f"🧠 LLM生成数: {summary['generation_count']}")
         print(f"❌ エラー数: {summary['error_count']}")
         
-        # ツール分析の詳細ログ
+        # 期待されるツールと実際のツールの比較
         actual_tools = [tc['tool_name'] for tc in summary['tool_calls'] if tc['status'] == 'completed']
         expected_tools = prompt_analysis['expected_tools']
         
-        print(f"🔍 === ツール呼び出し分析 ===")
+        print(f"\n🔍 === ツール呼び出し分析 ===")
         print(f"🎯 期待されるツール: {expected_tools}")
         print(f"✅ 実際に呼び出されたツール: {actual_tools}")
         
+        # ツール呼び出しの適切性を分析
         if expected_tools:
             matched_tools = set(actual_tools) & set(expected_tools)
             missing_tools = set(expected_tools) - set(actual_tools)
@@ -340,42 +216,44 @@ def agent(request):
             if unexpected_tools:
                 print(f"🔄 期待されていなかったが呼び出されたツール: {list(unexpected_tools)}")
                 
-            appropriateness_score = len(matched_tools) / len(expected_tools) * 100
-            print(f"📊 ツール呼び出し適切性スコア: {appropriateness_score:.1f}%")
+            # 適切性スコア計算
+            if expected_tools:
+                appropriateness_score = len(matched_tools) / len(expected_tools) * 100
+                print(f"📊 ツール呼び出し適切性スコア: {appropriateness_score:.1f}%")
+        else:
+            print(f"ℹ️ このプロンプトではツール呼び出しは期待されていませんでした")
+            if actual_tools:
+                print(f"🔄 しかし以下のツールが呼び出されました: {actual_tools}")
+        
+        print(f"🔍 === ツール分析終了 ===")
         
         if summary['tool_calls']:
-            print(f"🔧 ツール呼び出し詳細:")
+            print(f"\n🔧 ツール呼び出し詳細:")
             for i, tool_call in enumerate(summary['tool_calls'], 1):
                 print(f"  {i}. {tool_call['tool_name']} ({tool_call['status']}) - {tool_call['timestamp']}")
         
         if summary['errors']:
-            print(f"⚠️ エラー詳細:")
+            print(f"\n⚠️ エラー詳細:")
             for i, error in enumerate(summary['errors'], 1):
                 print(f"  {i}. {error['error_type']}: {error['error_message']}")
         
-        print(f"📊 === サマリー終了 ===")
+        print(f"📊 === サマリー終了 ===\n")
 
-        # Agentメッセージ保存の詳細ログ
-        try:
-            print(f"💾 Agentメッセージ保存開始...")
-            ChatMessageService().save_message(user_id, session_id, "agent", agent_response)
-            print(f"✅ Agentメッセージ保存完了")
-        except Exception as e:
-            print(f"❌ Agentメッセージ保存エラー: {e}")
+        print(f"💾 Agentメッセージを保存中...")
+        ChatMessageService().save_message(user_id, session_id, "agent", agent_response)
+        print(f"✅ Agentメッセージ保存完了")
 
-        # レスポンス作成の詳細ログ
-        print("📦 レスポンス作成開始...")
-        
-        # Cookie設定の詳細ログ
+        # セッションIDをCookieにセット（日本時間ベースで有効期限を設定）
         headers_with_cookie = headers.copy()
+        # 1週間後の日本時間を計算してUTCに変換
         expires_jst = current_jst + timedelta(days=7)
         expires_utc = expires_jst.astimezone(timezone.utc)
         expires = expires_utc.strftime("%a, %d %b %Y %H:%M:%S GMT")
         headers_with_cookie["Set-Cookie"] = (
             f"session_id={session_id}; Path=/; Expires={expires}; HttpOnly; SameSite=None; Secure"
         )
-        print(f"🍪 Cookie設定: session_id={session_id}, expires={expires}")
         
+        # レスポンスにサマリー情報も含める（デバッグ用）
         response_data = {
             "message": agent_response,
             "debug_info": {
@@ -399,52 +277,35 @@ def agent(request):
             }
         }
         
-        print(f"📦 レスポンスデータ作成完了")
-        print(f"📤 200レスポンス返却準備完了")
-        
         return https_fn.Response(
             json.dumps(response_data),
             status=200,
             headers=headers_with_cookie
         )
-        
     except Exception as e:
-        print(f"❌ === エージェント実行エラー ===")
-        print(f"❌ エラー内容: {str(e)}")
+        print(f"❌ Agent実行エラー: {str(e)}")
         print(f"❌ エラータイプ: {type(e).__name__}")
-        print(f"❌ エラー発生時刻: {now_jst()}")
-        
-        # エラー時の詳細情報
-        import traceback
-        print(f"❌ スタックトレース:")
-        print(traceback.format_exc())
         
         # エラー時サマリーを出力
-        try:
-            summary = nutrition_hooks.get_summary()
-            print(f"📊 === エラー時サマリー ===")
-            print(f"📈 総イベント数: {summary['total_events']}")
-            print(f"🔨 ツール呼び出し数: {summary['tool_call_count']}")
-            print(f"❌ エラー数: {summary['error_count']}")
-            if summary['errors']:
-                print(f"⚠️ 記録されたエラー:")
-                for error in summary['errors']:
-                    print(f"  - {error['error_type']}: {error['error_message']}")
-            print(f"📊 === エラー時サマリー終了 ===")
-        except Exception as summary_error:
-            print(f"❌ サマリー取得もエラー: {summary_error}")
-        
-        print(f"📤 500エラーレスポンス返却")
+        summary = nutrition_hooks.get_summary()
+        print(f"\n📊 === エラー時サマリー ===")
+        print(f"📈 総イベント数: {summary['total_events']}")
+        print(f"🔨 ツール呼び出し数: {summary['tool_call_count']}")
+        print(f"❌ エラー数: {summary['error_count']}")
+        if summary['errors']:
+            print(f"⚠️ 記録されたエラー:")
+            for error in summary['errors']:
+                print(f"  - {error['error_type']}: {error['error_message']}")
+        print(f"📊 === エラー時サマリー終了 ===\n")
         
         return https_fn.Response(
             json.dumps({
                 "message": "処理中にエラーが発生しました。",
                 "error": str(e),
-                "error_type": type(e).__name__,
                 "debug_info": {
                     "error_type": type(e).__name__,
-                    "tool_calls": summary['tool_call_count'] if 'summary' in locals() else 0,
-                    "errors": summary['error_count'] if 'summary' in locals() else 1
+                    "tool_calls": summary['tool_call_count'],
+                    "errors": summary['error_count']
                 }
             }),
             status=500,

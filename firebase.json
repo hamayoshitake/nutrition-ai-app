@@ -3,18 +3,34 @@
     "source": "backend/functions",
     "codebase": "default",
     "runtime": "python312",
-    "timeoutSeconds": 300,
+    "timeoutSeconds": 540,
+    "memory": "1GB",
+    "minInstances": 1,
+    "maxInstances": 10,
     "ignore": [
       "venv",
+      "venv/**",
+      "__pycache__",
+      "**/__pycache__/**",
       ".git",
+      ".git/**",
       "firebase-debug.log",
       "firebase-debug.*.log",
-      "*.local"
+      "*.local",
+      "*.pyc",
+      "**/*.pyc",
+      ".pytest_cache",
+      ".pytest_cache/**",
+      "node_modules",
+      "node_modules/**"
     ]
   },
   "emulators": {
+    "auth": {
+      "port": 9099
+    },
     "functions": {
-      "port": 5001
+      "port": 5005
     },
     "firestore": {
       "port": 7002
@@ -22,6 +38,11 @@
     "ui": {
       "enabled": true,
       "port": 4401
-    }
+    },
+    "singleProjectMode": true
+  },
+  "firestore": {
+    "rules": "backend/firestore.rules",
+    "indexes": "backend/firestore.indexes.json"
   }
 }

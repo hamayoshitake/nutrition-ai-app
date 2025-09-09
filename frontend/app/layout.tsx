@@ -1,10 +1,11 @@
 import type { Metadata } from 'next'
 import './globals.css'
+import { AuthProvider } from '@/contexts/AuthContext'
 
 export const metadata: Metadata = {
-  title: 'v0 App',
-  description: 'Created with v0',
-  generator: 'v0.dev',
+  title: 'MY BODY COACH',
+  description: 'あなたの健康管理をサポートするAIアシスタント',
+  generator: 'Next.js',
 }
 
 export default function RootLayout({
@@ -13,8 +14,12 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="ja">
+      <body>
+        <AuthProvider>
+          {children}
+        </AuthProvider>
+      </body>
     </html>
   )
 }

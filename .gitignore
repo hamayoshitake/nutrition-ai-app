@@ -21,6 +21,10 @@ out/
 firebase-debug.log
 firebase-debug.*.log
 
+# Firebase Emulator Data
+emulator-data/
+**/emulator-data/
+
 # OS
 .DS_Store
 Thumbs.db

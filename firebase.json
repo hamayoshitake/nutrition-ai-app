@@ -9,10 +9,20 @@
     "maxInstances": 10,
     "ignore": [
       "venv",
+      "venv/**",
+      "__pycache__",
+      "**/__pycache__/**",
       ".git",
+      ".git/**",
       "firebase-debug.log",
       "firebase-debug.*.log",
-      "*.local"
+      "*.local",
+      "*.pyc",
+      "**/*.pyc",
+      ".pytest_cache",
+      ".pytest_cache/**",
+      "node_modules",
+      "node_modules/**"
     ]
   },
   "emulators": {

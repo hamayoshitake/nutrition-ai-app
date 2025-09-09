@@ -94,18 +94,18 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
-            <Input
+              <Input
               id="email"
               name="email"
-              type="email"
+                type="email"
               placeholder="Enter your email"
               value={formData.email}
               onChange={handleChange}
-              disabled={loading}
+                disabled={loading}
               className={`rounded-xl ${errors.email ? "border-red-500" : ""}`}
-            />
+              />
             {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-          </div>
+            </div>
 
           <div className="space-y-2">
             <Label htmlFor="password">Password</Label>
@@ -165,16 +165,16 @@ export default function RegisterPage() {
 
           {errors.general && (
             <div className="text-red-500 text-sm text-center">{errors.general}</div>
-          )}
+            )}
 
-          <Button 
-            type="submit" 
+            <Button 
+              type="submit" 
             className="w-full rounded-xl bg-[#a8e1dc] hover:bg-[#8fd4ce] text-gray-800"
-            disabled={loading}
-          >
-            {loading ? '登録中...' : 'アカウント作成'}
-          </Button>
-        </form>
+              disabled={loading}
+            >
+              {loading ? '登録中...' : 'アカウント作成'}
+            </Button>
+          </form>
 
         <div className="mt-8 text-center">
           <p className="text-gray-600">
@@ -184,7 +184,7 @@ export default function RegisterPage() {
             </Link>
           </p>
         </div>
-      </div>
+          </div>
     </div>
   )
 }

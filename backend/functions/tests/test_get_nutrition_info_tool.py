@@ -118,7 +118,7 @@ async def test_nutrition_agent():
             
             # エージェント実行
             result = await Runner.run(test_agent, messages)
-
+            
             # new_itemsの条件分岐処理
             if hasattr(result, 'new_items') and result.new_items:
                 for idx, item in enumerate(result.new_items):

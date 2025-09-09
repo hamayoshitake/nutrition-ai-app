@@ -9,6 +9,7 @@ import {
   onAuthStateChanged 
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
+import { config } from '@/lib/config';
 
 interface AuthContextType {
   user: User | null;
@@ -73,34 +74,83 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error: any) {
+      // エラーメッセージを日本語で処理
+      const errorCode = error.code;
+      let errorMessage = '';
+      
+      switch (errorCode) {
+        case 'auth/user-not-found':
+          errorMessage = 'このメールアドレスは登録されていません。';
+          break;
+        case 'auth/wrong-password':
+          errorMessage = 'パスワードが間違っています。';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'メールアドレスの形式が正しくありません。';
+          break;
+        case 'auth/user-disabled':
+          errorMessage = 'このアカウントは無効化されています。';
+          break;
+        default:
+          errorMessage = 'ログインに失敗しました。';
+      }
+      
+      console.error('ログインエラー:', errorCode, errorMessage);
+      throw new Error(errorMessage);
+    }
   };
 
   const signUp = async (email: string, password: string) => {
-    // Firebase Authenticationでユーザー作成
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
-    
-    // バックエンドにユーザープロフィールを作成
     try {
-      const idToken = await user.getIdToken();
-      const response = await fetch('http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1/createUserProfile', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${idToken}`
-        },
-        body: JSON.stringify({
-          email: user.email,
-          name: user.displayName || null
-        })
-      });
+      // Firebase Authenticationでユーザー作成
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
       
-      if (!response.ok) {
-        console.error('ユーザープロフィール作成に失敗しました');
+      // バックエンドにユーザープロフィールを作成
+      try {
+        const idToken = await user.getIdToken();
+        const response = await fetch(config.getApiUrl(config.endpoints.createUserProfile), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${idToken}`
+          },
+          body: JSON.stringify({
+            email: user.email,
+            name: user.displayName || null
+          })
+        });
+        
+        if (!response.ok) {
+          console.error('ユーザープロフィール作成に失敗しました');
+        }
+      } catch (error) {
+        console.error('ユーザープロフィール作成エラー:', error);
       }
-    } catch (error) {
-      console.error('ユーザープロフィール作成エラー:', error);
+    } catch (error: any) {
+      // Firebase Authentication エラーの処理
+      const errorCode = error.code;
+      let errorMessage = '';
+      
+      switch (errorCode) {
+        case 'auth/email-already-in-use':
+          errorMessage = 'このメールアドレスは既に使用されています。';
+          break;
+        case 'auth/invalid-email':
+          errorMessage = 'メールアドレスの形式が正しくありません。';
+          break;
+        case 'auth/weak-password':
+          errorMessage = 'パスワードが弱すぎます。6文字以上で設定してください。';
+          break;
+        default:
+          errorMessage = 'ユーザー登録に失敗しました。';
+      }
+      
+      console.error('ユーザー登録エラー:', errorCode, errorMessage);
+      throw new Error(errorMessage);
     }
   };
 

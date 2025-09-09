@@ -8,7 +8,7 @@ export const config = {
   environment: process.env.NEXT_PUBLIC_ENVIRONMENT || 'development',
   
   // APIベースURL
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1',
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5005/nutrition-ai-app-bdee9/us-central1',
   
   // エンドポイント
   endpoints: {
@@ -19,7 +19,7 @@ export const config = {
   
   // 完全なAPIエンドポイントを取得する関数
   getApiUrl: (endpoint: string) => {
-    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5001/nutrition-ai-app-bdee9/us-central1'
+    const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:5005/nutrition-ai-app-bdee9/us-central1'
     return `${baseUrl}${endpoint}`
   }
 }

@@ -71,26 +71,44 @@ function ChatPage() {
 
     // agentsChat エンドポイントへリクエスト
     try {
+      console.log('🔧 DEBUG: チャットメッセージ送信開始');
+      console.log('🔧 DEBUG: inputValue:', inputValue);
+      
       // 新しいgetValidToken関数を使用
       const idToken = await getValidToken()
+      console.log('🔧 DEBUG: idToken取得:', idToken ? '成功' : '失敗');
       
       if (!idToken) {
         throw new Error('認証トークンの取得に失敗しました')
       }
       
-      const res = await fetch(
-        config.getApiUrl(config.endpoints.agent),
-        {
-          method: "POST",
-          headers: { 
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${idToken}`
-          },
-          credentials: "include",
-          body: JSON.stringify({ prompt: inputValue }),
-        }
-      )
+      const apiUrl = config.getApiUrl(config.endpoints.agent);
+      console.log('🔧 DEBUG: API URL:', apiUrl);
+      console.log('🔧 DEBUG: config.endpoints.agent:', config.endpoints.agent);
+      console.log('🔧 DEBUG: config.apiBaseUrl:', config.apiBaseUrl);
+      console.log('🔧 DEBUG: Environment:', process.env.NODE_ENV);
+      console.log('🔧 DEBUG: NEXT_PUBLIC_API_BASE_URL:', process.env.NEXT_PUBLIC_API_BASE_URL);
+      
+      const requestBody = { prompt: inputValue };
+      console.log('🔧 DEBUG: Request body:', requestBody);
+      
+      const requestOptions = {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        // credentials: "include", // 一時的にコメントアウト
+        body: JSON.stringify(requestBody),
+      };
+      console.log('🔧 DEBUG: Request options:', requestOptions);
+      
+      console.log('🔧 DEBUG: fetchリクエスト送信中...');
+      const res = await fetch(apiUrl, requestOptions);
+      console.log('🔧 DEBUG: fetchレスポンス受信:', res.status, res.statusText);
       const data = await res.json()
+      console.log('🔧 DEBUG: レスポンスデータ:', data);
+      
       // レスポンスステータスに応じて表示するメッセージを選択
       const messageText = res.ok
         ? data.message

@@ -34,6 +34,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // サーバーサイドレンダリング対応
+  const isClient = typeof window !== 'undefined';
+
   // トークンの自動更新機能（30分間隔）
   const getValidToken = useCallback(async (): Promise<string | null> => {
     if (!user) return null;
@@ -65,13 +68,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [user]);
 
   useEffect(() => {
+    // クライアントサイドでのみ認証状態を監視
+    if (!isClient || !auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
     });
 
     return unsubscribe;
-  }, []);
+  }, [isClient]);
 
   const signIn = async (email: string, password: string) => {
     try {

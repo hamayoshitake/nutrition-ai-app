@@ -84,10 +84,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signIn = async (email: string, password: string) => {
     try {
+      // Firebase Auth の初期化確認
+      if (!auth) {
+        console.error('Firebase Auth が初期化されていません');
+        throw new Error('認証システムの初期化に失敗しました。ページを再読み込みしてください。');
+      }
+
+      console.log('🔐 ログイン試行開始:', { email, authInitialized: !!auth });
+      
       await signInWithEmailAndPassword(auth, email, password);
+      console.log('✅ ログイン成功');
+      
     } catch (error: any) {
+      console.error('🚨 ログインエラー詳細:', {
+        error,
+        errorCode: error?.code,
+        errorMessage: error?.message,
+        authInitialized: !!auth
+      });
+      
       // エラーメッセージを日本語で処理
-      const errorCode = error.code;
+      const errorCode = error?.code;
       let errorMessage = '';
       
       switch (errorCode) {
@@ -103,8 +120,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         case 'auth/user-disabled':
           errorMessage = 'このアカウントは無効化されています。';
           break;
+        case 'auth/network-request-failed':
+          errorMessage = 'ネットワークエラーが発生しました。接続を確認してください。';
+          break;
+        case 'auth/too-many-requests':
+          errorMessage = 'リクエストが多すぎます。しばらく待ってから再試行してください。';
+          break;
+        case undefined:
+        case null:
+          errorMessage = `認証エラーが発生しました。エミュレータが起動しているか確認してください。(${error?.message || 'Unknown error'})`;
+          break;
         default:
-          errorMessage = 'ログインに失敗しました。';
+          errorMessage = `ログインに失敗しました。(${errorCode})`;
       }
       
       console.error('ログインエラー:', errorCode, errorMessage);

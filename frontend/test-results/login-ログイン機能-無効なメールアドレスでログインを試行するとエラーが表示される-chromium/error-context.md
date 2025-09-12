@@ -1,0 +1,31 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - heading "Welcome Back" [level=1] [ref=e5]
+      - paragraph [ref=e6]: Log in to your account
+    - generic [ref=e7]:
+      - generic [ref=e8]:
+        - generic [ref=e9]: Email
+        - textbox "Email" [active] [ref=e10]: invalid-email
+      - generic [ref=e11]:
+        - generic [ref=e12]:
+          - generic [ref=e13]: Password
+          - link "Forgot password?" [ref=e14] [cursor=pointer]:
+            - /url: "#"
+        - generic [ref=e15]:
+          - textbox "Password" [ref=e16]: password
+          - button [ref=e17] [cursor=pointer]:
+            - img [ref=e18] [cursor=pointer]
+      - button "ログイン" [ref=e21] [cursor=pointer]
+    - paragraph [ref=e23]:
+      - text: Don't have an account?
+      - link "Sign up" [ref=e24] [cursor=pointer]:
+        - /url: /register
+  - button "Open Next.js Dev Tools" [ref=e30] [cursor=pointer]:
+    - img [ref=e31] [cursor=pointer]
+  - paragraph [ref=e34]: Running in emulator mode. Do not use with production credentials.
+  - alert [ref=e35]
+```

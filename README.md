@@ -94,16 +94,34 @@ firebase use --add  # プロジェクト ID を選択
 
 ```bash
 # frontend/.env.local を作成
-NEXT_PUBLIC_FIREBASE_API_KEY=your_api_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_auth_domain
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project_id
-# その他の Firebase 設定...
+# 必須: Firebase プロジェクト設定（Firebase Console から取得）
+NEXT_PUBLIC_FIREBASE_API_KEY=your_firebase_api_key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=nutrition-ai-app-bdee9.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=nutrition-ai-app-bdee9
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=nutrition-ai-app-bdee9.firebasestorage.app
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+
+# 開発環境設定
+NEXT_PUBLIC_USE_EMULATOR=true
+NODE_ENV=development
+
+# API設定
+NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:5005/nutrition-ai-app-bdee9/us-central1
 
 # backend/functions/.env を作成
 OPENAI_API_KEY=your_openai_api_key
 ```
 
 ## 💻 開発
+
+### ⚠️ 重要な注意事項
+
+**Firebase環境変数が設定されていない場合、認証機能は動作しません。**
+
+1. Firebase Console から正しいAPIキーを取得
+2. `frontend/.env.local` に環境変数を設定
+3. 設定後にサーバーを再起動
 
 ### ローカル開発サーバーの起動
 

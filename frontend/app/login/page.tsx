@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label"
 import { EyeIcon, EyeOffIcon } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useAuth } from '@/contexts/AuthContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({

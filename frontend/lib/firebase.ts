@@ -62,26 +62,25 @@ if (typeof window !== 'undefined') {
         nodeEnv: process.env.NODE_ENV
       });
       // auth は null のままにしておく
-      return;
-    }
-    
-    console.log('🔧 Firebase 初期化開始');
-    console.log('📍 環境:', process.env.NODE_ENV);
-    
-    app = initializeApp(config);
-    auth = getAuth(app);
-    
-    // 開発環境のみエミュレーター接続
-    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_EMULATOR === 'true') {
-      try {
-        connectAuthEmulator(auth, 'http://localhost:9099');
-        console.log('✅ Auth エミュレータに接続しました');
-      } catch (error) {
-        console.log('⚠️ Auth emulator already connected:', error);
+    } else {
+      console.log('🔧 Firebase 初期化開始');
+      console.log('📍 環境:', process.env.NODE_ENV);
+      
+      app = initializeApp(config);
+      auth = getAuth(app);
+      
+      // 開発環境のみエミュレーター接続
+      if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_EMULATOR === 'true') {
+        try {
+          connectAuthEmulator(auth, 'http://localhost:9099');
+          console.log('✅ Auth エミュレータに接続しました');
+        } catch (error) {
+          console.log('⚠️ Auth emulator already connected:', error);
+        }
       }
+      
+      console.log('✅ Firebase 初期化完了');
     }
-    
-    console.log('✅ Firebase 初期化完了');
   } catch (error) {
     console.error('❌ Firebase initialization error:', error);
     // エラーが発生してもauth は null のままにしておく

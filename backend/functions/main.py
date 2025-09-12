@@ -37,6 +37,13 @@ else:
 # Firebase Admin の初期化
 initialize_app()
 
+# 🔧 本番環境での環境変数確認ログ追加
+print("🔍 Firebase Functions 起動時の環境変数確認:")
+print(f"   📍 NODE_ENV: {os.getenv('NODE_ENV', '未設定')}")
+print(f"   📍 FUNCTIONS_EMULATOR: {os.getenv('FUNCTIONS_EMULATOR', '未設定')}")
+print(f"   📍 USDA_API_KEY: {'設定済み' if os.getenv('USDA_API_KEY') else '未設定'}")
+print(f"   📍 FIRESTORE_EMULATOR_HOST: {os.getenv('FIRESTORE_EMULATOR_HOST', '未設定')}")
+
 # 疎通確認用エンドポイント
 @https_fn.on_request()
 def helloWorld(request):

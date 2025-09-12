@@ -9,7 +9,6 @@
     "emulators:clean": "firebase emulators:start",
     "emulators:reset": "rm -rf ./emulator-data && firebase emulators:start --export-on-exit=./emulator-data"
   },
-  "workspaces": ["frontend"],
   "engines": {
     "node": ">=18"
   }

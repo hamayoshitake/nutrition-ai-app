@@ -1,0 +1,19 @@
+# Ignore unnecessary directories and files
+backend/
+api/
+app/
+demo-movie/
+emulator-data/
+firebase-export-*/
+*.log
+jest.config.js
+jest.setup.js
+package-lock.json
+pnpm-lock.yaml
+.DS_Store
+.vscode/
+.cursor/
+.playwright-mcp/
+
+# Include only frontend
+!frontend/

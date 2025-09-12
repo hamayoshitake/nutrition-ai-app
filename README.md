@@ -44,7 +44,7 @@ nutrition-ai-app/
 
 ### インフラ
 
-- **ホスティング**: Firebase Hosting
+- **ホスティング**: Vercel
 - **データベース**: Firebase Firestore
 - **サーバーレス**: Firebase Functions
 - **認証**: Firebase Authentication
@@ -158,16 +158,24 @@ python -m pytest tests/
 
 ## 📦 デプロイ
 
-### Firebase へのデプロイ
+### Vercel へのデプロイ（フロントエンド）
 
 ```bash
-# 全体のデプロイ
-firebase deploy
+# Vercel CLI を使用
+vercel --prod
 
-# 個別デプロイ
-firebase deploy --only hosting      # フロントエンドのみ
-firebase deploy --only functions    # バックエンドのみ
-firebase deploy --only firestore    # Firestore ルールのみ
+# または GitHub 連携で自動デプロイ
+git push origin main
+```
+
+### Firebase へのデプロイ（バックエンド）
+
+```bash
+# Firebase Functions のみデプロイ
+firebase deploy --only functions
+
+# Firestore ルールのみデプロイ
+firebase deploy --only firestore
 ```
 
 ## 📁 プロジェクト構造
@@ -250,10 +258,6 @@ nutrition-ai-app/
 ## 📄 ライセンス
 
 このプロジェクトは私的利用のため、ライセンスは設定されていません。
-
-## 👥 貢献
-
-このプロジェクトは現在プライベートプロジェクトです。
 
 ## 📞 サポート
 

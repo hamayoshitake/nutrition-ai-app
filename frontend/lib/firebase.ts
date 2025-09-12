@@ -24,12 +24,14 @@ try {
   if (typeof window !== 'undefined') {
     auth = getAuth(app);
     
-    // 開発環境でエミュレーター接続
-    if (process.env.NODE_ENV === 'development') {
+    // 開発環境でのみエミュレーター接続
+    // 本番環境では絶対にエミュレーターに接続しない
+    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_USE_EMULATOR === 'true') {
       try {
         connectAuthEmulator(auth, 'http://localhost:9099');
+        console.log('🔧 Firebase Auth Emulator connected');
       } catch (error) {
-        console.log('Auth emulator already connected');
+        console.log('Auth emulator already connected or not available');
       }
     }
   }

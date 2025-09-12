@@ -15,6 +15,24 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
 // Firebase設定（本番環境用のフォールバック付き）
 const getFirebaseConfig = () => {
+  // Vercel環境変数の詳細確認ログ
+  console.log('🔍 === Vercel環境変数確認 ===');
+  console.log('📍 NODE_ENV:', process.env.NODE_ENV);
+  console.log('📍 VERCEL:', process.env.VERCEL);
+  console.log('📍 VERCEL_ENV:', process.env.VERCEL_ENV);
+  console.log('📍 Firebase環境変数:');
+  console.log('  - API_KEY:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - AUTH_DOMAIN:', process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - PROJECT_ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - STORAGE_BUCKET:', process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - MESSAGING_SENDER_ID:', process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - APP_ID:', process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '✅ 設定済み' : '❌ 未設定');
+  console.log('📍 実際の値（最初の10文字のみ表示）:');
+  console.log('  - API_KEY:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.substring(0, 10) + '...');
+  console.log('  - AUTH_DOMAIN:', process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
+  console.log('  - PROJECT_ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+  console.log('================================');
+
   // 本番環境の場合のデフォルト設定
   const defaultConfig = {
     apiKey: "AIzaSyDYOlD2g8X8eFWZhbp3tG3kXX8lJE-1234", // ダミー値、実際の値はVercelで設定
@@ -25,7 +43,7 @@ const getFirebaseConfig = () => {
     appId: "1:123456789012:web:abcdef1234567890abcdef"
   };
 
-  return {
+  const config = {
     apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || defaultConfig.apiKey,
     authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
     projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || defaultConfig.projectId,
@@ -33,6 +51,17 @@ const getFirebaseConfig = () => {
     messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
     appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || defaultConfig.appId
   };
+
+  console.log('🔧 最終的なFirebase設定:', {
+    apiKey: config.apiKey?.substring(0, 10) + '...',
+    authDomain: config.authDomain,
+    projectId: config.projectId,
+    storageBucket: config.storageBucket,
+    messagingSenderId: config.messagingSenderId,
+    appId: config.appId?.substring(0, 20) + '...'
+  });
+
+  return config;
 };
 
 // Firebase初期化

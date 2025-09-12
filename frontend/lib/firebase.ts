@@ -54,6 +54,13 @@ if (typeof window !== 'undefined') {
     if (!config || !config.apiKey) {
       console.log('⚠️ Firebase 設定が不完全です。認証機能は無効になります。');
       console.log('📋 環境変数の設定が必要: NEXT_PUBLIC_FIREBASE_API_KEY など');
+      console.log('🔍 現在の設定状況:', {
+        hasConfig: !!config,
+        apiKey: config?.apiKey ? '設定済み' : '未設定',
+        authDomain: config?.authDomain || '未設定',
+        projectId: config?.projectId || '未設定',
+        nodeEnv: process.env.NODE_ENV
+      });
       // auth は null のままにしておく
       return;
     }

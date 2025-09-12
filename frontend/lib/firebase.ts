@@ -13,7 +13,7 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
-// Firebase設定（本番環境用のフォールバック付き）
+// Firebase設定（開発環境対応）
 const getFirebaseConfig = () => {
   // Vercel環境変数の詳細確認ログ
   console.log('🔍 === Vercel環境変数確認 ===');
@@ -73,6 +73,20 @@ if (typeof window !== 'undefined') {
   try {
     const config = getFirebaseConfig();
     
+    // 設定が無効な場合は初期化をスキップ
+    if (!config || !config.apiKey) {
+      console.log('⚠️ Firebase 設定が不完全です。認証機能は無効になります。');
+      console.log('📋 環境変数の設定が必要: NEXT_PUBLIC_FIREBASE_API_KEY など');
+      console.log('🔍 現在の設定状況:', {
+        hasConfig: !!config,
+        apiKey: config?.apiKey ? '設定済み' : '未設定',
+        authDomain: config?.authDomain || '未設定',
+        projectId: config?.projectId || '未設定',
+        nodeEnv: process.env.NODE_ENV
+      });
+      // auth は null のままにしておく
+    } else {
+    
     console.log('🔧 Firebase 初期化開始');
     console.log('📍 環境:', process.env.NODE_ENV);
     
@@ -90,9 +104,11 @@ if (typeof window !== 'undefined') {
     }
     
     console.log('✅ Firebase 初期化完了');
+    }
   } catch (error) {
     console.error('❌ Firebase initialization error:', error);
     // エラーが発生してもauth は null のままにしておく
+    auth = null;
   }
 }
 

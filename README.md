@@ -20,9 +20,7 @@
 ```
 nutrition-ai-app/
 ├── frontend/          # Next.js フロントエンド
-├── backend/           # Firebase Functions (Python)
-├── documents/         # 仕様書・設計書
-└── tests/            # テスト関連
+└── backend/           # Firebase Functions (Python)
 ```
 
 ## 🛠️ 技術スタック

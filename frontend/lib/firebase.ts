@@ -15,30 +15,53 @@ import { getAuth, connectAuthEmulator } from 'firebase/auth';
 
 // Firebase設定（開発環境対応）
 const getFirebaseConfig = () => {
-  // 環境変数から設定を取得
-  const config = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
+  // Vercel環境変数の詳細確認ログ
+  console.log('🔍 === Vercel環境変数確認 ===');
+  console.log('📍 NODE_ENV:', process.env.NODE_ENV);
+  console.log('📍 VERCEL:', process.env.VERCEL);
+  console.log('📍 VERCEL_ENV:', process.env.VERCEL_ENV);
+  console.log('📍 Firebase環境変数:');
+  console.log('  - API_KEY:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - AUTH_DOMAIN:', process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - PROJECT_ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - STORAGE_BUCKET:', process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - MESSAGING_SENDER_ID:', process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID ? '✅ 設定済み' : '❌ 未設定');
+  console.log('  - APP_ID:', process.env.NEXT_PUBLIC_FIREBASE_APP_ID ? '✅ 設定済み' : '❌ 未設定');
+  console.log('📍 実際の値（最初の10文字のみ表示）:');
+  console.log('  - API_KEY:', process.env.NEXT_PUBLIC_FIREBASE_API_KEY?.substring(0, 10) + '...');
+  console.log('  - AUTH_DOMAIN:', process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
+  console.log('  - PROJECT_ID:', process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
+  console.log('================================');
+
+  // 本番環境の場合のデフォルト設定
+  const defaultConfig = {
+    apiKey: "AIzaSyDYOlD2g8X8eFWZhbp3tG3kXX8lJE-1234", // ダミー値、実際の値はVercelで設定
+    authDomain: "nutrition-ai-app-bdee9.firebaseapp.com",
+    projectId: "nutrition-ai-app-bdee9",
+    storageBucket: "nutrition-ai-app-bdee9.firebasestorage.app",
+    messagingSenderId: "123456789012",
+    appId: "1:123456789012:web:abcdef1234567890abcdef"
   };
 
-  // 本番環境でのフォールバック設定
-  if (process.env.NODE_ENV === 'production') {
-    return {
-      apiKey: config.apiKey || "production-api-key-required",
-      authDomain: config.authDomain || "nutrition-ai-app-bdee9.firebaseapp.com",
-      projectId: config.projectId || "nutrition-ai-app-bdee9",
-      storageBucket: config.storageBucket || "nutrition-ai-app-bdee9.firebasestorage.app",
-      messagingSenderId: config.messagingSenderId || "123456789012",
-      appId: config.appId || "1:123456789012:web:abcdef1234567890abcdef"
-    };
-  }
+  const config = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || defaultConfig.apiKey,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || defaultConfig.authDomain,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || defaultConfig.projectId,
+    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || defaultConfig.storageBucket,
+    messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || defaultConfig.messagingSenderId,
+    appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || defaultConfig.appId
+  };
 
-  // 開発環境では環境変数が設定されていない場合はnullを返す
-  return config.apiKey ? config : null;
+  console.log('🔧 最終的なFirebase設定:', {
+    apiKey: config.apiKey?.substring(0, 10) + '...',
+    authDomain: config.authDomain,
+    projectId: config.projectId,
+    storageBucket: config.storageBucket,
+    messagingSenderId: config.messagingSenderId,
+    appId: config.appId?.substring(0, 20) + '...'
+  });
+
+  return config;
 };
 
 // Firebase初期化

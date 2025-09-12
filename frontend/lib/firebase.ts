@@ -62,8 +62,7 @@ if (typeof window !== 'undefined') {
         nodeEnv: process.env.NODE_ENV
       });
       // auth は null のままにしておく
-      return;
-    }
+    } else {
     
     console.log('🔧 Firebase 初期化開始');
     console.log('📍 環境:', process.env.NODE_ENV);
@@ -82,6 +81,7 @@ if (typeof window !== 'undefined') {
     }
     
     console.log('✅ Firebase 初期化完了');
+    }
   } catch (error) {
     console.error('❌ Firebase initialization error:', error);
     // エラーが発生してもauth は null のままにしておく

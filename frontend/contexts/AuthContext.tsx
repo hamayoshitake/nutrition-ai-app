@@ -87,7 +87,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Firebase Auth の初期化確認
       if (!auth) {
         console.error('Firebase Auth が初期化されていません');
-        throw new Error('認証システムの初期化に失敗しました。ページを再読み込みしてください。');
+        console.error('環境変数の設定を確認してください: NEXT_PUBLIC_FIREBASE_API_KEY');
+        throw new Error('認証システムが設定されていません。Firebase環境変数を確認してください。');
       }
 
       console.log('🔐 ログイン試行開始:', { email, authInitialized: !!auth });

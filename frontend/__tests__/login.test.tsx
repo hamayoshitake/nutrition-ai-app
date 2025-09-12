@@ -1,8 +1,8 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { signInWithEmailAndPassword } from 'firebase/auth'
-import LoginPage from '@/app/login/page'
-import { AuthProvider } from '@/contexts/AuthContext'
+import LoginPage from '../app/login/page'
+import { AuthProvider } from '../contexts/AuthContext'
 
 // Firebase Auth のモック
 jest.mock('firebase/auth')

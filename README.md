@@ -19,10 +19,11 @@
 
 アプリケーションのデモを試すことができます：
 
-**デモURL**: https://v0-simple-chat-app-gules.vercel.app/login
+**デモURL**: <https://v0-simple-chat-app-gules.vercel.app/login>
 
 **デモ用アカウント**:
-- **メールアドレス**: test-1@gmail.com
+
+- **メールアドレス**: <test-1@gmail.com>
 - **パスワード**: pass2025
 
 上記のアカウントでログインして、栄養管理AIアシスタントの機能をお試しください。

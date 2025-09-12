@@ -8,8 +8,8 @@ import {
   signOut, 
   onAuthStateChanged 
 } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
-import { config } from '@/lib/config';
+import { auth } from '../lib/firebase';
+import { config } from '../lib/config';
 
 interface AuthContextType {
   user: User | null;

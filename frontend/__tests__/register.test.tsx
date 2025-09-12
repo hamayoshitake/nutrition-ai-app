@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import RegisterPage from '@/app/register/page'
-import { AuthProvider } from '@/contexts/AuthContext'
+import { AuthProvider } from '../contexts/AuthContext'
 
 // Firebase Auth のモック
 jest.mock('firebase/auth')

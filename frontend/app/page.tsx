@@ -1,12 +1,12 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Button } from "@/components/ui/button"
+import { Avatar, AvatarFallback, AvatarImage } from "../components/ui/avatar"
+import { Button } from "../components/ui/button"
 import { Mic, Send, LogOut } from "lucide-react"
-import ProtectedRoute from "@/components/ProtectedRoute"
-import { useAuth } from "@/contexts/AuthContext"
-import { config } from "@/lib/config"
+import ProtectedRoute from "../components/ProtectedRoute"
+import { useAuth } from "../contexts/AuthContext"
+import { config } from "../lib/config"
 
 interface Message {
   id: string
